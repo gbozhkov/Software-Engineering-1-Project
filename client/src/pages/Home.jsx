@@ -1,7 +1,10 @@
+// Page showing all clubs and incoming events
+
 import { React, useEffect, useState } from "react"
 import axios from "axios"
 import { Link } from "react-router-dom"
 
+// Progress bar component
 const ProgressBar = ({ percentage }) => {
   return (
     <div className="progress-bar-container">
@@ -14,9 +17,11 @@ const ProgressBar = ({ percentage }) => {
 };
 
 const Home = () => {
+    // State to hold clubs and events data
     const [clubs, setClubs] = useState([])
     const [events, setEvents] = useState([])
 
+    // Fetch clubs data from backend
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -29,6 +34,7 @@ const Home = () => {
         fetchData()
     }, [])
 
+    // Fetch events data from backend
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -41,6 +47,7 @@ const Home = () => {
         fetchData()
     }, [])
 
+    // ---> UPDTATE: Handle club deletion should be in manege club page (not home page) <---
     const handleDelate = async (clubName) => {
         try {
             await axios.delete("http://localhost:3000/clubs/" + clubName)
@@ -50,6 +57,7 @@ const Home = () => {
         }
     }
 
+    // Render clubs and events
     return (
         <div>
             <h1>Club List</h1>

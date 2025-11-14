@@ -1,35 +1,45 @@
-import { React, useEffect, useState } from "react"
+// Page for user login
+
+import { React, useState } from "react"
 import axios from "axios"
 import { useNavigate } from "react-router-dom"
 
 const LogIn = () => {
+    // State for user credentials
     const [credential, setCredential] = useState({
         username: "",
         password: "",
     })
-    const [person, setPerson] = useState([])
 
+    // Navigation hook to redirect to home page after login
     const navigate = useNavigate()
 
+    // Handle input changes and update state
     const handleChange = (e) => {
         setCredential((prev) => ({...prev, [e.target.name]: e.target.value}))
     }
 
+    // Handle form submission to login the user
     const handleClick = async (e) => {
-        e.preventDefault()
+        e.preventDefault() // Prevent default form submission behavior
         try {
-            const res = await axios.get("http://localhost:3000/login/", credential)
-            setPerson(res.data)
-            if (setPerson.role) {
-                navigate("../?role=" + data.role + "&club=" + data.club)
+            // Send POST request to backend to get user role and club
+            const res = await axios.post("http://localhost:3000/login", credential)
+            const user = res.data[0]
+            // If valid credentials, navigate to home with role and club
+            if (user.role) {
+                navigate("../?role=" + user.role + "&club=" + user.club)
             } else {
+                // If invalid credentials, show alert
                 alert("Invalid credentials")
             }
         } catch (err) {
+            // Log any errors
             console.error(err)
         }
     }
 
+    // Render the login form
     return (
         <div className="logIn">
             <h1>Login Page</h1>

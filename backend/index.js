@@ -1,9 +1,14 @@
+// Backend server using Express and mysql2 (to connect to MySQL database)
+
 import express from 'express'
 import mysql from 'mysql2'
 import cors from 'cors'
 
+// Initialize express app
 const app = express()
 
+// Create a connection to the database
+// USE YOUR OWN DATABASE CREDENTIALS
 const db = mysql.createConnection({
     host: '127.0.0.1',
     port: '3306',
@@ -12,6 +17,7 @@ const db = mysql.createConnection({
     database: 'school_club_activity'
 })
 
+// Connect to the database
 db.connect(err => {
   if (err) {
     console.error('DB connection error:', err);
@@ -20,45 +26,53 @@ db.connect(err => {
   console.log('Connected to MySQL via mysql2');
 });
 
+// Middleware
 app.use(express.json())
 app.use(cors())
 
-app.get('/', (req, res) => {
-    res.json('Hello to the backend!')
-})
-
+// Get all clubs
 app.get('/clubs', (req, res) => {
+    // Create the SELECT query
     const q = "SELECT * FROM clubs"
 
+    // Execute the query
     db.query(q, (err, data) => {
         if (err) return res.json(err)
         return res.json(data)
     })
 })
 
+// Get upcoming events
 app.get('/events', (req, res) => {
+    // Create the SELECT query
     const q = "SELECT * FROM events WHERE date > NOW() ORDER BY date ASC LIMIT 10"
 
+    // Execute the query
     db.query(q, (err, data) => {
         if (err) return res.json(err)
         return res.json(data)
     })
 })
 
-app.get('/login', (req, res) => {
+// User login
+app.post('/login', (req, res) => {
+    // Create the SELECT query
     const q = "SELECT role, club FROM person WHERE username = ? AND password = ?"
     const values = [
-      req.body.username,
-      req.body.password
+        req.body.username,
+        req.body.password
     ]
 
-    db.query(q, [values], (err, data) => {
+    // Execute the query
+    db.query(q, values, (err, data) => {
         if (err) return res.json(err)
         return res.json(data)
     })
 })
 
-app.post('/clubs', (req, res) => {
+// Create a new club
+app.post('/createClub', (req, res) => {
+    // Cerate the INSERT query
     const q = "INSERT INTO clubs (clubName, description, memberCount, memberMax) VALUES (?)"
     const values = [
       req.body.clubName,
@@ -67,39 +81,41 @@ app.post('/clubs', (req, res) => {
       req.body.memberMax
     ]
 
+    // Execute the query
     db.query(q, [values], (err, data) => {
         if (err) return res.json(err)
         return res.json("Person added successfully")
     })
 })
 
+// Delete a club by clubName
 app.delete('/clubs/:clubName', (req, res) => {
-    const clubName = req.params.clubName
+    // Cerate the DELETE query
     const q = "DELETE FROM clubs WHERE clubName = ?"
+    const clubName = req.params.clubName
 
-    db.query(q, [clubName], (err, data) => {
+    // Execute the query
+    db.query(q, clubName, (err, data) => {
         if (err) return res.json(err)
         return res.json("Club deleted successfully")
     })
 })
 
 app.put('/joinClubs/:clubName', (req, res) => {
+    // Cerate the UPDATE query
+    const q = "UPDATE person SET club = ? WHERE username = ? AND password = ?"
     const clubName = req.params.clubName
     const username = req.body.username
     const password = req.body.password
 
-    if (!username || !password) {
-        return res.status(400).json({ error: "Username and password are required" });
-    }
-
-    const q = "UPDATE person SET club = ? WHERE username = ? AND password = ?"
-
+    // Execute the query
     db.query(q, [clubName, username, password], (err, data) => {
         if (err) return res.json(err)
         return res.json("Club joined successfully")
     })
 })
 
+// Start the server
 app.listen(3000, () => {    
   console.log('Connected to backend on port 3000!')
 })
