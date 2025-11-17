@@ -68,9 +68,9 @@ const Home = () => {
                         <p>{club.description}</p>
                         <p>Members: {club.memberCount} / {club.memberMax}</p>
                         <ProgressBar percentage={club.memberCount / club.memberMax * 100} />
-                        <button className="joinClub"><Link to={`/JoinClub/${club.clubName}`}>Join Club</Link></button>
-                        <button className="deleteClub" onClick={() => handleDelate(club.clubName)}>Delate Club</button>
-                        <button className="detail"><Link to={`/ClubPage/${club.clubName}`}>View Club</Link></button>
+                        <button><Link to={`/JoinClub/${club.clubName}`}>Join Club</Link></button>
+                        <button className="deletebtn" onClick={() => handleDelate(club.clubName)}>Delate Club</button>
+                        <button><Link to={`/ClubPage/${club.clubName}`}>View Club</Link></button>
                     </div>
                 ))}
             </div>

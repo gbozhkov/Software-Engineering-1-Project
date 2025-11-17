@@ -42,6 +42,59 @@ app.get('/clubs', (req, res) => {
     })
 })
 
+
+// Get specific club by clubName
+app.get('/clubs/:clubName', (req, res) => {
+    // Cerate the SELECT query
+    const q = "SELECT * FROM clubs WHERE clubName = ?"
+    const clubName = req.params.clubName
+
+    // Execute the query
+    db.query(q, clubName, (err, data) => {
+        if (err) return res.json(err)
+        return res.json(data)
+    })
+})
+
+// Get specific events by clubName
+app.get('/events/:clubName', (req, res) => {
+    // Cerate the SELECT query
+    const q = "SELECT * FROM events WHERE clubName = ?"
+    const clubName = req.params.clubName
+
+    // Execute the query
+    db.query(q, clubName, (err, data) => {
+        if (err) return res.json(err)
+        return res.json(data)
+    })
+})
+
+// Get person events by clubName
+app.get('/person/:clubName', (req, res) => {
+    // Cerate the SELECT query
+    const q = "SELECT username, role FROM person WHERE club = ?"
+    const clubName = req.params.clubName
+
+    // Execute the query
+    db.query(q, clubName, (err, data) => {
+        if (err) return res.json(err)
+        return res.json(data)
+    })
+})
+
+// Get specific comments by clubName
+app.get('/comments/:clubName', (req, res) => {
+    // Cerate the SELECT query
+    const q = "SELECT * FROM comments WHERE clubName = ?"
+    const clubName = req.params.clubName
+
+    // Execute the query
+    db.query(q, clubName, (err, data) => {
+        if (err) return res.json(err)
+        return res.json(data)
+    })
+})
+
 // Get upcoming events
 app.get('/events', (req, res) => {
     // Create the SELECT query
@@ -88,6 +141,24 @@ app.post('/createClub', (req, res) => {
     })
 })
 
+// Create a new comment
+app.post('/comment', (req, res) => {
+    // Cerate the INSERT query
+    const q = "INSERT INTO comments (date, comment, rating, username, clubName) VALUES (NOW(), ?)"
+    const values = [
+      req.body.comment,
+      req.body.rating,
+      req.body.username,
+      req.body.clubName
+    ]
+
+    // Execute the query
+    db.query(q, [values], (err, data) => {
+        if (err) return res.json(err)
+        return res.json("Person added successfully")
+    })
+})
+
 // Delete a club by clubName
 app.delete('/clubs/:clubName', (req, res) => {
     // Cerate the DELETE query
@@ -98,6 +169,19 @@ app.delete('/clubs/:clubName', (req, res) => {
     db.query(q, clubName, (err, data) => {
         if (err) return res.json(err)
         return res.json("Club deleted successfully")
+    })
+})
+
+// Delete a comment by commentId
+app.delete('/comment/:commentid', (req, res) => {
+    // Cerate the DELETE query
+    const q = "DELETE FROM comments WHERE commentid = ?"
+    const commentId = req.params.commentid
+
+    // Execute the query
+    db.query(q, commentId, (err, data) => {
+        if (err) return res.json(err)
+        return res.json("Comment deleted successfully")
     })
 })
 

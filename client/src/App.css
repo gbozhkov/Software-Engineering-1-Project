@@ -142,9 +142,10 @@ a:hover {
 
 /* Buttons */
 button {
-  padding: 0.75rem 1.5rem;
+  width: 150px;
   background: #4f46e5;
   color: #ffffff;
+  padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 4px;
   font-size: 1rem;
@@ -152,26 +153,22 @@ button {
   transition: background 0.3s, transform 0.2s;
 }
 button:hover {
-  background: #4338ca;
   transform: translateY(-2px);
+  background: #4338ca;
 }
 button:active {
-  background: #3730a3;
   transform: translateY(0);
+  background: #3730a3;
 }
 
-.clubs button {
-  width: 150px;
-  padding: 0.5rem 1rem;
-  background: #4f46e5;
-  color: #ffffff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.3s;
+/* Additional button styles by class */
+.deletebtn {
+  background: red !important;
+  color: white;
 }
-.clubs button:hover {
-  background: #4338ca;
+
+.deletebtn:hover {
+  background: darkred !important;
 }
 
 /* Event Date */
@@ -189,6 +186,7 @@ button:active {
 
 /* Inputs */
 input {
+  width: 200px;
   padding: 0.75rem 1rem;
   border: 1px solid #e5e7eb;
   border-radius: 4px;
@@ -254,4 +252,292 @@ form button {
   color: #ffffff;
   font-size: 0.9rem;
   font-weight: bold;
+}
+
+/* Delete Button */
+.deleteClub {
+  background-color: red !important;
+}
+
+.deleteClub:hover {
+  background-color: darkred !important;
+}
+
+.clubMemberListContainer {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.clubMemberList {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Section Title */
+.members-section h3 {
+  text-align: left;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.4rem;
+  color: #1f2937;
+}
+
+/* Tables */
+.members-section table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 2rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Header */
+.members-section thead {
+  background: #f3f4f6;
+}
+.members-section th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Rows */
+.members-section td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+/* Hover effect */
+.members-section tbody tr:hover {
+  background: #f9fafb;
+}
+
+/* Fix last row border */
+.members-section tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Accept button */
+.members-section button {
+  width: auto;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+/* Club Page Layout */
+.club-page {
+  display: grid;
+  grid-template-columns: 1fr 360px; /* main content + sidebar */
+  gap: 2rem;
+  align-items: start;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+/* On small screens stack columns */
+@media (max-width: 880px) {
+  .club-page {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+}
+
+/* Main content (left) */
+.club-main {
+  text-align: left;
+}
+
+/* Club header */
+.club-main > .club-header {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  padding: 1.25rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(15,23,42,0.04);
+  margin-bottom: 1rem;
+}
+.club-main .club-header h2 {
+  margin: 0 0 0.5rem 0;
+  color: #111827;
+  font-size: 1.75rem;
+}
+.club-main .club-header p {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+/* Events list */
+.club-main .events {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.club-main .event {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+  transition: transform 0.14s, box-shadow 0.14s;
+}
+.club-main .event:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(15,23,42,0.06);
+}
+.club-main .event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+.club-main .event-header h2 {
+  font-size: 1.05rem;
+  margin: 0;
+  color: #0f172a;
+}
+.club-main .event-date {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+.club-main .event-club {
+  font-weight: 600;
+  color: #4f46e5;
+  margin: 0.25rem 0;
+}
+.club-main .event-description {
+  margin: 0.4rem 0 0.6rem 0;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+/* Action buttons in main */
+.club-main .actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Sidebar (right) */
+.club-sidebar {
+  position: relative;
+  align-self: start;
+  width: 100%;
+}
+@media (min-width: 881px) {
+  .club-sidebar {
+    position: relative;
+  }
+}
+.club-sidebar .members-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 1rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(15,23,42,0.04);
+}
+
+/* Members title */
+.club-sidebar h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  color: #111827;
+}
+
+/* Tables inside sidebar: compact */
+.club-sidebar table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.75rem;
+}
+.club-sidebar th,
+.club-sidebar td {
+  text-align: left;
+  padding: 0.45rem;
+  font-size: 0.95rem;
+  color: #374151;
+}
+.club-sidebar thead th {
+  font-weight: 700;
+  color: #374151;
+  font-size: 0.95rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.club-sidebar tbody tr:hover {
+  background: rgba(79,70,229,0.03);
+}
+
+/* Comments (reuses event style) */
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.comment {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 0.8rem 0.9rem;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.03);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.comment:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 14px rgba(15,23,42,0.05);
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.25rem;
+}
+.comment-header .comment-meta {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+.comment-body {
+  font-size: 0.94rem;
+  color: #374151;
+  margin-bottom: 0.45rem;
+  line-height: 1.3;
+}
+.comment-footer {
+  display:flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Rating pill */
+.comment .rating {
+  font-weight: 600;
+  background: rgba(79,70,229,0.08);
+  color: #4f46e5;
+  padding: 0.18rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+/* Small delete button matching sidebar sizing */
+.comment .deletebtn {
+  padding: 0.28rem 0.5rem;
+  font-size: 0.82rem;
+  border-radius: 6px;
 }
