@@ -67,6 +67,42 @@ const ClubPage = () => {
         fetchData()
     }, [])
 
+    const handleAccept = async (username) => {
+        try {
+            await axios.put("http://localhost:3000/accept/" + username)
+            window.location.reload()
+        } catch (err) {
+            console.error(err)
+        }
+    }
+
+    const handlePromote = async (username) => {
+        try {
+            await axios.put("http://localhost:3000/promote/" + username)
+            window.location.reload()
+        } catch (err) {
+            console.error(err)
+        }
+    }
+
+    const handleExpell = async (username) => {
+        try {
+            await axios.put("http://localhost:3000/expell/" + username)
+            window.location.reload()
+        } catch (err) {
+            console.error(err)
+        }
+    }
+
+    const handleDelateEvent = async (eventid) => {
+        try {
+            await axios.delete("http://localhost:3000/event/" + eventid)
+            window.location.reload()
+        } catch (err) {
+            console.error(err)
+        }
+    }
+
     const handleDeleteComment = async (commentid) => {
         try {
             await axios.delete("http://localhost:3000/comment/" + commentid)
@@ -87,16 +123,15 @@ const ClubPage = () => {
                 <p>{club.description}</p>
                 </div>
             ))}
-
-            <h3 style={{margin: "0 0 0.5rem 0"}}>Events:</h3>
+            <button><Link to={"/UpdateClub/" + clubName}>Update Info</Link></button>
             <div className="events">
+                <h3 style={{margin: "0 0 0.5rem 0"}}>Events:</h3>
                 {events.map((event) => (
                 <div className="event" key={event.eventid}>
                     <div className="event-header">
                     <h2>{event.title}</h2>
                     <span className="event-date">{new Date(event.date).toLocaleDateString('en-GB')}</span>
                     </div>
-                    <p className="event-club">Hold by {event.clubName}</p>
                     <p className="event-description">{event.description}</p>
                     <div className="actions">
                     <button className="deletebtn" onClick={() => handleDelateEvent(event.eventid)}>Delete Event</button>
@@ -126,7 +161,10 @@ const ClubPage = () => {
                                 <tr key={p.username}>
                                     <td>{p.username}</td>
                                     <td>{p.role}</td>
-                                    <td><button className="deletebtn" onClick={() => handleDelateExpell(p.username)}>Expell</button></td>
+                                    <td><button className="deletebtn" onClick={() => handleExpell(p.username)}>Expell</button>
+                                    {p.role === "CM" && (<button onClick={() => handlePromote(p.username)} style={{margin: "0 0 0 0.5rem"}}>Promote</button>)}
+                                    {p.role === "VP" && (<button onClick={() => handleAccept(p.username)} style={{margin: "0 0 0 0.5rem"}}>Depromote</button>)}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -143,7 +181,7 @@ const ClubPage = () => {
                             {person.filter((p) => p.role === "STU").map((p) => (
                                 <tr key={p.username}>
                                     <td>{p.username}</td>
-                                    <td><button onClick={() => handleDelateExpell(p.username)}>Acept</button></td>
+                                    <td><button onClick={() => handleAccept(p.username)}>Accept</button></td>
                                 </tr>
                             ))}
                         </tbody>

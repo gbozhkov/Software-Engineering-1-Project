@@ -310,6 +310,7 @@ form button {
 
 /* Rows */
 .members-section td {
+  white-space: nowrap;
   padding: 0.75rem;
   border-bottom: 1px solid #e5e7eb;
   color: #374151;

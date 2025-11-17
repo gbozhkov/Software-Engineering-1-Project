@@ -8,6 +8,7 @@ import CreateClub from './pages/CreateClub.jsx';
 import ClubPage from './pages/ClubPage.jsx';
 import JoinClub from './pages/JoinClub.jsx';
 import Comment from './pages/Comment.jsx';
+import CreateEvent from './pages/CreateEvent.jsx';
 
 // ---> UPDATE: ClubPage/:clubName->:clubName ; Comment/:clubName-> :clubName/Comment ... <---
 
@@ -22,6 +23,7 @@ function App() {
           <Route path="/ClubPage/:clubName" element={<ClubPage/>} />
           <Route path="/JoinClub/:clubName" element={<JoinClub/>} />
           <Route path="/Comment/:clubName" element={<Comment/>} />
+          <Route path="/CreateEvent/:clubName" element={<CreateEvent/>} />
         </Routes>
       </BrowserRouter>
     </div>
