@@ -30,11 +30,12 @@ CREATE TABLE `events` (
     `date` date NOT NULL,
     `title` text,
     `description` text,
+    `accepted` tinyint(1) DEFAULT FALSE,
     `clubName` varchar(255) NOT NULL,
     PRIMARY KEY (`eventid`),
     KEY `clubName` (`clubName`),
     CONSTRAINT `events_ibfk_1` FOREIGN KEY (`clubName`) REFERENCES `clubs` (`clubName`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB AUTO_INCREMENT = 11 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
+) ENGINE = InnoDB AUTO_INCREMENT = 22 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
 
 CREATE TABLE `comments` (
     `commentid` int NOT NULL AUTO_INCREMENT,
@@ -105,18 +106,18 @@ INSERT INTO person (username, password, role, club, sessionId) VALUES
 ('Sofia', 'sofia_pw', 'CM', 'Basketball', NULL);
 
 -- ===== EVENTS =====
-INSERT INTO events (date, title, description, clubName) VALUES
-('2025-10-25', 'Autumn Ski Trial', 'A small, friendly slope day; someone tried backward skiing.', 'Ski'),
-('2025-11-02', 'Apres-ski Pancake Panic', 'The pancake stove exploded during the apres-ski. Chaos and butter everywhere.', 'Ski'),
-('2025-10-30', 'Night Hoops: 3-pt Challenge', 'Late-night friendly tournament; video evidence exists.', 'Basketball'),
-('2025-11-01', 'Baseball Backfield BBQ', 'Hot dogs, lost mitt and Marco''s tall tale growing each retelling.', 'Baseball'),
-('2025-11-10', 'Chess Blitz Marathon', 'Blitz games, whispered taunts, and one marathon match.', 'Chess'),
-('2025-11-17', 'Mid-November Jam', 'Quick rehearsal session and open mic.', 'Music'),
-('2025-11-20', 'Ski Safety Workshop', 'Learn how to fall with dignity. Hot cocoa afterward.', 'Ski'),
-('2025-11-22', 'Friendly Match: Basketball vs. Local Teachers', 'Teachers are surprisingly competitive.', 'Basketball'),
-('2025-12-05', 'Winter Concert Rehearsal', 'Full orchestra rehearsal before the winter concert.', 'Music'),
-('2025-12-15', 'Holiday Play: Surprise', 'Full cast rehearsal for the December show.', 'Drama'),
-('2026-01-10', 'Robotics Mini-Sprint', 'Prototype challenge: make it move or regret it.', 'Robotics');
+INSERT INTO events (date, title, description, accepted, clubName) VALUES
+('2025-10-25', 'Autumn Ski Trial', 'A small, friendly slope day; someone tried backward skiing.', 1, 'Ski'),
+('2025-11-02', 'Apres-ski Pancake Panic', 'The pancake stove exploded during the apres-ski. Chaos and butter everywhere.', 1, 'Ski'),
+('2025-10-30', 'Night Hoops: 3-pt Challenge', 'Late-night friendly tournament; video evidence exists.', 1, 'Basketball'),
+('2025-11-01', 'Baseball Backfield BBQ', 'Hot dogs, lost mitt and Marco''s tall tale growing each retelling.', 1, 'Baseball'),
+('2025-11-10', 'Chess Blitz Marathon', 'Blitz games, whispered taunts, and one marathon match.', 1, 'Chess'),
+('2025-11-17', 'Mid-November Jam', 'Quick rehearsal session and open mic.', 1, 'Music'),
+('2025-11-20', 'Ski Safety Workshop', 'Learn how to fall with dignity. Hot cocoa afterward.', 0, 'Ski'),
+('2025-11-22', 'Friendly Match: Basketball vs. Local Teachers', 'Teachers are surprisingly competitive.', 1, 'Basketball'),
+('2025-12-05', 'Winter Concert Rehearsal', 'Full orchestra rehearsal before the winter concert.', 1, 'Music'),
+('2025-12-15', 'Holiday Play: Surprise', 'Full cast rehearsal for the December show.', 1, 'Drama'),
+('2026-01-10', 'Robotics Mini-Sprint', 'Prototype challenge: make it move or regret it.', 0, 'Robotics');
 
 -- ===== COMMENTS =====
 INSERT INTO comments (date, comment, rating, username, clubName) VALUES

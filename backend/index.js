@@ -98,7 +98,7 @@ app.get('/comments/:clubName', (req, res) => {
 // Get upcoming events
 app.get('/events', (req, res) => {
     // Create the SELECT query
-    const q = "SELECT * FROM events WHERE date > NOW() ORDER BY date ASC"
+    const q = "SELECT * FROM events WHERE date > NOW() AND accepted = 1 ORDER BY date ASC"
 
     // Execute the query
     db.query(q, (err, data) => {
@@ -216,6 +216,19 @@ app.delete('/event/:eventid', (req, res) => {
     })
 })
 
+// Accept a event by eventId
+app.put('/event/:eventid', (req, res) => {
+    // Cerate the UPDATE query
+    const q = "UPDATE events SET accepted = 1 WHERE eventid = ?"
+    const eventId = req.params.eventid
+
+    // Execute the query
+    db.query(q, eventId, (err, data) => {
+        if (err) return res.json(err)
+        return res.json("Comment accepted successfully")
+    })
+})
+
 app.put('/clubs/:clubName', (req, res) => {
     // Cerate the UPDATE query
     const q = "UPDATE clubs SET description = ?, memberMax = ? WHERE clubName = ?"
@@ -282,6 +295,7 @@ app.put('/reject/:username', (req, res) => {
     })
 })
 
+// Promote a member to VP by username
 app.put('/promote/:username', (req, res) => {
     // Cerate the UPDATE query
     const q = "UPDATE person SET role = 'VP' WHERE username = ?"

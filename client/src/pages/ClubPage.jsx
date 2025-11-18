@@ -112,6 +112,15 @@ const ClubPage = () => {
         }
     }
 
+    const handleAcceptEvent = async (eventid) => {
+        try {
+            await axios.put("http://localhost:3000/event/" + eventid)
+            window.location.reload()
+        } catch (err) {
+            console.error(err)
+        }
+    }
+
     const handleDeleteComment = async (commentid) => {
         try {
             await axios.delete("http://localhost:3000/comment/" + commentid)
@@ -147,6 +156,7 @@ const ClubPage = () => {
                         </div>
                         <p className="event-description">{event.description}</p>
                         <div className="actions">
+                            {!event.accepted && (<button onClick={() => handleAcceptEvent(event.eventid)}>Accept</button>)}
                             <button className="deletebtn" onClick={() => handleDelateEvent(event.eventid)}>Delete Event</button>
                         </div>
                     </div>
@@ -237,7 +247,10 @@ const ClubPage = () => {
                     <button><Link to={"/Comment/" + clubName}>Comment</Link></button>
                 </div>
             </aside>
-            <button><Link to={"../"}>Back</Link></button>
+            <div>
+                <button><Link to={"../"}>Back</Link></button>&nbsp;
+                <button className="deletebtn" onClick={() => handleExpell(/*username*/)}>Quit club</button>
+            </div>
         </div>
     )
 }
