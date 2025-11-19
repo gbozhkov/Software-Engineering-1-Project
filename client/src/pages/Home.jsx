@@ -85,7 +85,13 @@ const Home = () => {
                     <div className="event-header">
                         <h2>{event.title}</h2>
                         <span className="event-date">
-                        {new Date(event.date).toLocaleDateString('en-GB')}
+                            {((s,e)=>!e
+                                ? `${s.toLocaleDateString('en-GB')} ${s.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})}`
+                                : s.toDateString() === e.toDateString()
+                                    ? `${s.toLocaleDateString('en-GB')} ${s.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})} - ${e.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})}`
+                                    : `${s.toLocaleDateString('en-GB')} ${s.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})} - ${e.toLocaleDateString('en-GB')} ${e.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})}`
+                                )(new Date(event.startDate), event.endDate ? new Date(event.endDate) : null
+                            )}
                         </span>
                     </div>
                     <p className="event-club">Hold by {event.clubName}</p>

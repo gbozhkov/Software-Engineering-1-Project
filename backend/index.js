@@ -20,11 +20,11 @@ const db = mysql.createConnection({
 // Connect to the database
 db.connect(err => {
   if (err) {
-    console.error('DB connection error:', err);
-    process.exit(1);
+    console.error('DB connection error:', err)
+    process.exit(1)
   }
-  console.log('Connected to MySQL via mysql2');
-});
+  console.log('Connected to MySQL via mysql2')
+})
 
 // Middleware
 app.use(express.json())
@@ -59,7 +59,7 @@ app.get('/clubs/:clubName', (req, res) => {
 // Get specific events by clubName
 app.get('/events/:clubName', (req, res) => {
     // Cerate the SELECT query
-    const q = "SELECT * FROM events WHERE clubName = ? ORDER BY date ASC"
+    const q = "SELECT * FROM events WHERE clubName = ? ORDER BY startDate ASC"
     const clubName = req.params.clubName
 
     // Execute the query
@@ -69,7 +69,7 @@ app.get('/events/:clubName', (req, res) => {
     })
 })
 
-// Get person events by clubName
+// Get person by clubName
 app.get('/person/:clubName', (req, res) => {
     // Cerate the SELECT query
     const q = "SELECT username, role FROM person WHERE club = ? ORDER BY FIELD(role, 'CL', 'VP', 'CM', 'STU'), username ASC"
@@ -98,7 +98,7 @@ app.get('/comments/:clubName', (req, res) => {
 // Get upcoming events
 app.get('/events', (req, res) => {
     // Create the SELECT query
-    const q = "SELECT * FROM events WHERE date > NOW() AND accepted = 1 ORDER BY date ASC"
+    const q = "SELECT * FROM events WHERE startDate > NOW() AND accepted = 1 ORDER BY startDate ASC"
 
     // Execute the query
     db.query(q, (err, data) => {
@@ -162,11 +162,12 @@ app.post('/comment', (req, res) => {
 // Create a new event
 app.post('/createEvent', (req, res) => {
     // Cerate the INSERT query
-    const q = "INSERT INTO events (title, description, date, clubName) VALUES (?)"
+    const q = "INSERT INTO events (title, description, startDate, endDate, clubName) VALUES (?)"
     const values = [
       req.body.title,
       req.body.description,
-      req.body.date,
+      req.body.startDate,
+      req.body.endDate === "" ? null : req.body.endDate,
       req.body.clubName
     ]
 

@@ -6,19 +6,19 @@ DROP TABLE IF EXISTS clubs;
 
 -- ====== CREATE TABLES ======
 CREATE TABLE `clubs` (
-    `clubName` varchar(255) NOT NULL,
-    `description` text NOT NULL,
-    `memberCount` int NOT NULL,
-    `memberMax` int NOT NULL,
+    `clubName` varchar(255) NOT NULL COMMENT 'Unique name of the club',
+    `description` text NOT NULL COMMENT 'Description of the club activities and schedules',
+    `memberCount` int NOT NULL COMMENT 'Current number of members in the club',
+    `memberMax` int NOT NULL COMMENT 'Maximum allowed members in the club',
     PRIMARY KEY (`clubName`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
 
 CREATE TABLE `person` (
-    `username` varchar(255) NOT NULL,
-    `password` text NOT NULL,
-    `role` text NOT NULL,
-    `club` varchar(255) DEFAULT NULL,
-    `sessionId` varchar(255) DEFAULT NULL,
+    `username` varchar(255) NOT NULL COMMENT 'Unique username for each person',
+    `password` text NOT NULL COMMENT 'Password for the user account',
+    `role` text NOT NULL COMMENT 'Role of the person in the club (CL, VP, CM, STU)',
+    `club` varchar(255) DEFAULT NULL COMMENT 'The club the person is associated with; NULL if not a member of any club; STU + club means pending membership',
+    `sessionId` varchar(255) DEFAULT NULL COMMENT 'Session identifier for logged-in users; NULL if not logged in',
     PRIMARY KEY (`username`),
     UNIQUE KEY `sessionId` (`sessionId`),
     KEY `club` (`club`),
@@ -26,24 +26,25 @@ CREATE TABLE `person` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
 
 CREATE TABLE `events` (
-    `eventid` int NOT NULL AUTO_INCREMENT,
-    `date` date NOT NULL,
-    `title` text,
-    `description` text,
-    `accepted` tinyint(1) DEFAULT FALSE,
-    `clubName` varchar(255) NOT NULL,
+    `eventid` int NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier for each event',
+    `title` text NOT NULL COMMENT 'The title of the event',
+    `description` text COMMENT 'A detailed description of the event',
+    `startDate` datetime DEFAULT NULL COMMENT 'The start date of the event',
+    `endDate` datetime DEFAULT NULL COMMENT 'The end date of the event',
+    `accepted` tinyint(1) DEFAULT '0' COMMENT 'Boolean value indicating whether the event is accepted (1) or pending (0)',
+    `clubName` varchar(255) NOT NULL COMMENT 'The club organizing the event',
     PRIMARY KEY (`eventid`),
     KEY `clubName` (`clubName`),
     CONSTRAINT `events_ibfk_1` FOREIGN KEY (`clubName`) REFERENCES `clubs` (`clubName`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE = InnoDB AUTO_INCREMENT = 22 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
 
 CREATE TABLE `comments` (
-    `commentid` int NOT NULL AUTO_INCREMENT,
-    `date` datetime DEFAULT NULL,
-    `comment` text NOT NULL,
-    `rating` int NOT NULL,
-    `username` varchar(255) NOT NULL,
-    `clubName` varchar(255) NOT NULL,
+    `commentid` int NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier for each comment',
+    `date` datetime DEFAULT NULL COMMENT 'Timestamp of when the comment was made',
+    `comment` text NOT NULL COMMENT 'The content of the comment',
+    `rating` int NOT NULL DEFAULT '0' COMMENT 'Rating associated with the comment, from 1 to 5; 0 if no rating is given',
+    `username` varchar(255) NOT NULL COMMENT 'The username of the person who made the comment',
+    `clubName` varchar(255) NOT NULL COMMENT 'The club the comment is associated with',
     PRIMARY KEY (`commentid`),
     KEY `username` (`username`),
     KEY `clubName` (`clubName`),
@@ -52,7 +53,7 @@ CREATE TABLE `comments` (
 ) ENGINE = InnoDB AUTO_INCREMENT = 12 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
 
 -- ===== CLUBS (parents) =====
-INSERT INTO clubs (clubName, description, memberCount, memberMax) VALUES
+INSERT INTO clubs (`clubName`, `description`, `memberCount`, `memberMax`) VALUES
 ('Ski', 'Mountain adventurers: apres-ski, hot chocolate battles and occasional avalanche avoidance.', 0, 30),
 ('Basketball', 'Hoops, trash-talk, and gym-floor legends.', 0, 40),
 ('Baseball', 'Sun, bats, and the slow-burning rivalry with the Soccer club.', 0, 25),
@@ -63,7 +64,7 @@ INSERT INTO clubs (clubName, description, memberCount, memberMax) VALUES
 ('Robotics', 'Solder, code, and the occasional smoke test.', 0, 18);
 
 -- ===== PERSONS =====
-INSERT INTO person (username, password, role, club, sessionId) VALUES
+INSERT INTO person (`username`, `password`, `role`, `club`, `sessionId`) VALUES
 ('Francesco', '123456', 'CL', 'Ski', NULL),
 ('Samuele', 'gocciole', 'CM', 'Ski', NULL),
 ('Ari', 'ari_pw', 'CM', 'Ski', NULL),
@@ -106,21 +107,21 @@ INSERT INTO person (username, password, role, club, sessionId) VALUES
 ('Sofia', 'sofia_pw', 'CM', 'Basketball', NULL);
 
 -- ===== EVENTS =====
-INSERT INTO events (date, title, description, accepted, clubName) VALUES
-('2025-10-25', 'Autumn Ski Trial', 'A small, friendly slope day; someone tried backward skiing.', 1, 'Ski'),
-('2025-11-02', 'Apres-ski Pancake Panic', 'The pancake stove exploded during the apres-ski. Chaos and butter everywhere.', 1, 'Ski'),
-('2025-10-30', 'Night Hoops: 3-pt Challenge', 'Late-night friendly tournament; video evidence exists.', 1, 'Basketball'),
-('2025-11-01', 'Baseball Backfield BBQ', 'Hot dogs, lost mitt and Marco''s tall tale growing each retelling.', 1, 'Baseball'),
-('2025-11-10', 'Chess Blitz Marathon', 'Blitz games, whispered taunts, and one marathon match.', 1, 'Chess'),
-('2025-11-17', 'Mid-November Jam', 'Quick rehearsal session and open mic.', 1, 'Music'),
-('2025-11-20', 'Ski Safety Workshop', 'Learn how to fall with dignity. Hot cocoa afterward.', 0, 'Ski'),
-('2025-11-22', 'Friendly Match: Basketball vs. Local Teachers', 'Teachers are surprisingly competitive.', 1, 'Basketball'),
-('2025-12-05', 'Winter Concert Rehearsal', 'Full orchestra rehearsal before the winter concert.', 1, 'Music'),
-('2025-12-15', 'Holiday Play: Surprise', 'Full cast rehearsal for the December show.', 1, 'Drama'),
-('2026-01-10', 'Robotics Mini-Sprint', 'Prototype challenge: make it move or regret it.', 0, 'Robotics');
+INSERT INTO events (`startDate`, `endDate`, `title`, `description`, `accepted`, `clubName`) VALUES
+('2025-10-25 09:00:00', '2025-10-25 16:00:00', 'Autumn Ski Trial', 'A small, friendly slope day; someone tried backward skiing.', 1, 'Ski'),
+('2025-11-02 18:00:00', NULL, 'Apres-ski Pancake Panic', 'The pancake stove exploded during the apres-ski. Chaos and butter everywhere.', 1, 'Ski'),
+('2025-10-30 20:00:00', '2025-11-30 00:30:00', 'Night Hoops: 3-pt Challenge', 'Late-night friendly tournament; video evidence exists.', 1, 'Basketball'),
+('2025-11-01 12:00:00', '2025-11-01 15:00:00', 'Baseball Backfield BBQ', 'Hot dogs, lost mitt and Marco''s tall tale growing each retelling.', 1, 'Baseball'),
+('2025-11-10 17:00:00', '2025-12-10 01:00:00', 'Chess Blitz Marathon', 'Blitz games, whispered taunts, and one marathon match.', 1, 'Chess'),
+('2025-11-17 16:00:00', '2025-11-17 19:00:00', 'Mid-November Jam', 'Quick rehearsal session and open mic.', 1, 'Music'),
+('2025-11-20 10:00:00', '2025-11-20 12:00:00', 'Ski Safety Workshop', 'Learn how to fall with dignity. Hot cocoa afterward.', 0, 'Ski'),
+('2025-11-22 14:00:00', '2025-11-22 17:00:00', 'Friendly Match: Basketball vs. Local Teachers', 'Teachers are surprisingly competitive.', 1, 'Basketball'),
+('2025-12-05 15:00:00', '2025-12-05 18:00:00', 'Winter Concert Rehearsal', 'Full orchestra rehearsal before the winter concert.', 1, 'Music'),
+('2025-12-15 18:00:00', '2025-12-15 21:00:00', 'Holiday Play: Surprise', 'Full cast rehearsal for the December show.', 1, 'Drama'),
+('2026-01-10 09:00:00', NULL, 'Robotics Mini-Sprint', 'Prototype challenge: make it move or regret it.', 0, 'Robotics');
 
 -- ===== COMMENTS =====
-INSERT INTO comments (date, comment, rating, username, clubName) VALUES
+INSERT INTO comments (`date`, `comment`, `rating`, `username`, `clubName`) VALUES
 ('2025-10-25 18:30:00', 'Tried backward skiing — do not recommend. Davide survived.', 3, 'Davide', 'Ski'),
 ('2025-11-02 11:30:00', 'Pancake Panic was wild; Samuele claimed marshmallow immunity.', 4, 'Francesco', 'Ski'),
 ('2025-11-03 09:00:00', 'Found leftover syrup in my pockets. Best regrets.', 4, 'Ari', 'Ski'),

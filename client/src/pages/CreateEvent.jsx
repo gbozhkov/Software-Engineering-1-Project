@@ -13,7 +13,8 @@ const CreateEvent = () => {
     const [event, setEvent] = useState({
         title: "",
         description: "",
-        date: "",
+        startDate: "",
+        endDate: "",
         clubName: clubName
     })
 
@@ -24,6 +25,8 @@ const CreateEvent = () => {
     const handleChange = (e) => {
         setEvent((prev) => ({...prev, [e.target.name]: e.target.value}))
     }
+
+    console.log(event)
 
     // Handle form submission to create a new club
     const handleClick = async (e) => {
@@ -47,7 +50,8 @@ const CreateEvent = () => {
             <form>
                 <input type="text" placeholder="title" onChange={handleChange} name="title" required/><br/>
                 <input type="text" placeholder="description" onChange={handleChange} name="description" required/><br/>
-                <input type="date" placeholder="date" min="0" max="5" onChange={handleChange} name="date" required/><br/>
+                <input type="datetime-local" onChange={handleChange} name="startDate" required/><br/>
+                <input type="datetime-local" onChange={handleChange} name="endDate" required/><br/>
                 <button type="submit" onClick={handleClick}>Create</button>
             </form>
             <button><Link to={"../../ClubPage/" + clubName}>Back</Link></button>
