@@ -1,5 +1,6 @@
 import { React, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import DOMPurify from 'dompurify';
 
 // Progress bar component
 const ProgressBar = ({ percentage }) => {
@@ -94,7 +95,7 @@ export default function BrowseClubs({ clubs }) {
         {pagedClubs.map((club) => (
           <div className="club card" key={club.clubName}>
             <h2>{club.clubName}</h2>
-            <p>{club.description}</p>
+            <p dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(club.description) }}></p>
             <p>Members: {club.memberCount} / {club.memberMax}</p>
             <ProgressBar percentage={(club.memberCount / club.memberMax) * 100} />
             <Link className="btn" to={`/ClubPage/${club.clubName}`}>View Club</Link>

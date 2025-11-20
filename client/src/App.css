@@ -211,6 +211,7 @@ form button {
   background: linear-gradient(145deg, rgba(79, 70, 229, 0.95), rgba(14, 165, 233, 0.8));
   color: #f8fafc;
   box-shadow: var(--shadow-md);
+  text-align: center;
 }
 .createClub h2 {
   margin-top: 0;
@@ -608,4 +609,12 @@ form button {
 
 .CreateClub input, .logIn input{
   margin-bottom: 0px;
+}
+
+textarea {
+  min-height: 5em;
+  resize: vertical;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
 }

@@ -3,6 +3,7 @@
 import { React, useEffect, useState } from "react"
 import axios from "axios"
 import { Link, useLocation, useNavigate } from "react-router-dom"
+import DOMPurify from 'dompurify';
 
 const ClubPage = () => {
     // State to hold clubs and events data
@@ -150,7 +151,7 @@ const ClubPage = () => {
             {clubs.map((club) => (
                 <div className="club-header" key={club.clubName}>
                 <h2>{club.clubName}</h2>
-                <p>{club.description}</p>
+                <p dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(club.description) }}></p>
                 </div>
             ))}
             <button><Link to={"/UpdateClub/" + clubName}>Update Info</Link></button>

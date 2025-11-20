@@ -47,7 +47,7 @@ const CreateClub = () => {
             <h1>Create Club</h1>
             <form>
                 <input type="text" placeholder="Club Name" onChange={handleChange} name="clubName" required/><br/>
-                <input type="text" placeholder="Description" onChange={handleChange} name="description" required/><br/>
+                <textarea type="text" placeholder="Description" onChange={handleChange} name="description" required/><br/>
                 <input type="number" placeholder="Max Members" onChange={handleChange} name="memberMax" required/><br/>
                 <button type="submit" onClick={handleClick}>Create</button>
             </form>

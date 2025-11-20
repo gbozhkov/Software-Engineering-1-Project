@@ -47,7 +47,7 @@ const CreateEvent = () => {
             <h1>Comment under {clubName}</h1>
             <form>
                 <input type="text" placeholder="title" onChange={handleChange} name="title" required/><br/>
-                <input type="text" placeholder="description" onChange={handleChange} name="description" required/><br/>
+                <textarea type="text" placeholder="description" onChange={handleChange} name="description" required/><br/>
                 <input type="datetime-local" onChange={handleChange} name="startDate" required/><br/>
                 <input type="datetime-local" onChange={handleChange} name="endDate" required/><br/>
                 <button type="submit" onClick={handleClick}>Create</button>

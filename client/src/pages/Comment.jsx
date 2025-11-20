@@ -37,16 +37,14 @@ const CommentPage = () => {
             console.error(err)
         }
     }
-
-    // ---> UPDATE: change role STU to CL and club NULL to clubName <---
-
+    
     // Render the create club form
     return (
         <div className="CreateClub">
             <h1>Comment under {clubName}</h1>
             <form>
-                <input type="text" placeholder="comment" onChange={handleChange} name="comment" required/><br/>
-                <input type="number" placeholder="rating" min="0" max="5" onChange={handleChange} name="rating" required/><br/>
+                <textarea type="text" placeholder="Comment" onChange={handleChange} name="comment" required/><br/>
+                <input type="number" placeholder="Rating" min="0" max="5" onChange={handleChange} name="rating" required/><br/>
                 <button type="submit" onClick={handleClick}>Comment</button>
             </form>
             <button><Link to={"../../ClubPage/" + clubName}>Back</Link></button>

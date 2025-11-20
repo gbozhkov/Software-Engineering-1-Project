@@ -28,11 +28,15 @@ const UpdateClub = () => {
         e.preventDefault() // Prevent default form submission behavior
         try {
             // Send POST request to backend to create club
-            await axios.put("http://localhost:3000/clubs/" + clubName, clubs)
-            navigate("../ClubPage/" + clubName) // Navigate back to home
+            const res = await axios.post("http://localhost:3000/updateClub/" + clubName, clubs)
+
+            if (res.status === 201) navigate("../ClubPage/" + clubName) // Navigate back to home
         } catch (err) {
-            // Log any errors
-            console.error(err)
+            if (err.response && err.response.status === 400) {
+                alert("Max members higher should be lower then current memeres count!")
+            } else {
+                console.error(err)
+            }
         }
     }
 
@@ -43,7 +47,7 @@ const UpdateClub = () => {
         <div className="CreateClub">
             <h1>Update Club {clubName}</h1>
             <form>
-                <input type="text" placeholder="Description" onChange={handleChange} name="description" required/><br/>
+                <textarea type="text" placeholder="Description" onChange={handleChange} name="description" required/><br/>
                 <input type="number" placeholder="Max Members" onChange={handleChange} name="memberMax" required/><br/>
                 <button type="submit" onClick={handleClick}>Update</button>
             </form>

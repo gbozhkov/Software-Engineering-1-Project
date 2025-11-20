@@ -245,19 +245,30 @@ app.put('/event/:eventid', (req, res) => {
     })
 })
 
-app.put('/clubs/:clubName', (req, res) => {
-    // Cerate the UPDATE query
-    const q = "UPDATE clubs SET description = ?, memberMax = ? WHERE clubName = ?"
+// Update club details
+app.post('/updateClub/:clubName', (req, res) => {
     const values = [
       req.body.description,
       req.body.memberMax,
       req.body.clubName
     ]
+    
+    // Cerate the UPDATE query
+    const q1 = "SELECT memberCount FROM clubs WHERE clubName = ?"
 
     // Execute the query
-    db.query(q, values, (err, data) => {
-        if (err) return res.json(err)
-        return res.json("Club joined successfully")
+    db.query(q1, req.body.clubName, (err, data) => {
+        if (err) return res.status(500).json(err)
+
+        // Club already exists
+        if (data[0].memberCount > req.body.memberMax) return res.status(400).json({ message: "Max members higher lower then current memeres count" })
+
+        // Create the club
+        const q2 = "UPDATE clubs SET description = ?, memberMax = ? WHERE clubName = ?"
+        db.query(q2, values, (err, data) => {
+            if (err) return res.json(err)
+            return res.status(201).json("Club updated successfully")
+        })
     })
 })
 
