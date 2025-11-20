@@ -1,7 +1,7 @@
 # School Club Activity Showcase
 
 Project done by Team 9:
-Francesco Bolner, Georgi Bozhkov ,Samuele Fumagalli, Ayoub Merdan, Martin Ushilov
+Francesco Bolner, Georgi Bozhkov, Samuele Fumagalli, Ayoub Merdan, Martin Ushilov
 
 Team 9's Software Engineering project is to create a website regarding School Club Activities. Everyone who visits
 the website will be able to see recent news on events organised by all clubs, however, the website is designed 
