@@ -1,4 +1,5 @@
 // Backend server using Express and mysql2 (to connect to MySQL database)
+// GOCCIOLE
 
 import express from 'express'
 import mysql from 'mysql2'
