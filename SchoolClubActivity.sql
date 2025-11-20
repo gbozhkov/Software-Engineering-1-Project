@@ -67,7 +67,7 @@ INSERT INTO clubs (`clubName`, `description`, `memberCount`, `memberMax`) VALUES
 INSERT INTO person (`username`, `password`, `role`, `club`, `sessionId`) VALUES
 ('Francesco', '123456', 'CL', 'Ski', NULL),
 ('Samuele', 'gocciole', 'CM', 'Ski', NULL),
-('Ari', 'ari_pw', 'CM', 'Ski', NULL),
+('Ari', 'tecno<3', 'CM', 'Ski', NULL),
 ('Davide', 'skiman', 'STU', 'Ski', NULL),
 ('Bea', 'beapwd', 'VP', 'Ski', NULL),
 ('Giorgie', 'password', 'CL', 'Basketball', 'akenfue3kd'),

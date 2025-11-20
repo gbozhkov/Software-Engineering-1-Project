@@ -25,11 +25,11 @@ const LogIn = () => {
         try {
             // Send POST request to backend to get user role and club
             const res = await axios.post("http://localhost:3000/login", credential)
-            const user = res.data[0]
-            // If valid credentials, navigate to home with role and club
-            if (user.role) {
-                navigate("../?role=" + user.role + "&club=" + user.club)
-            } else {
+            if (res.data.length > 0) {
+                // If valid credentials, navigate to home with role and club
+                const user = res.data[0]
+                navigate("../?username=" + credential.username + "&role=" + user.role + "&club=" + user.club)
+            }else {
                 // If invalid credentials, show alert
                 alert("Invalid credentials")
             }
