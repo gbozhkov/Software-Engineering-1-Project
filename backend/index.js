@@ -125,8 +125,6 @@ app.post('/login', (req, res) => {
 
 // Create a new club
 app.post('/createClub', (req, res) => {
-    // Cerate the INSERT query
-    const q = "INSERT INTO clubs (clubName, description, memberCount, memberMax) VALUES (?)"
     const values = [
       req.body.clubName,
       req.body.description,
@@ -134,10 +132,21 @@ app.post('/createClub', (req, res) => {
       req.body.memberMax
     ]
 
-    // Execute the query
-    db.query(q, [values], (err, data) => {
-        if (err) return res.json(err)
-        return res.json("Person added successfully")
+    // First check if club already exists
+    const q1 = "SELECT * FROM clubs WHERE clubName = ?"
+
+    db.query(q1, req.body.clubName, (err, data) => {
+        if (err) return res.status(500).json(err)
+
+        // Club already exists
+        if (data.length > 0) return res.status(400).json({ message: "Club already exists" })
+
+        // Create the club
+        const q2 = "INSERT INTO clubs (clubName, description, memberCount, memberMax) VALUES (?)"
+        db.query(q2, [values], (err, data) => {
+            if (err) return res.json(err)
+            return res.status(201).json("Club added successfully")
+        })
     })
 })
 

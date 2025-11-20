@@ -21,16 +21,21 @@ const CreateClub = () => {
         setClubs((prev) => ({...prev, [e.target.name]: e.target.value}))
     }
 
-    // Handle form submission to create a new club
     const handleClick = async (e) => {
         e.preventDefault() // Prevent default form submission behavior
         try {
             // Send POST request to backend to create club
-            await axios.post("http://localhost:3000/createClub", clubs)
-            navigate("../") // Navigate back to home
+            const res = await axios.post("http://localhost:3000/createClub", clubs)
+
+            // If creation is successful, navigate back to home
+            if (res.status === 201) navigate("../")
         } catch (err) {
-            // Log any errors
-            console.error(err)
+            // Check if error comes from duplicate club
+            if (err.response && err.response.status === 400) {
+                alert("Club already exists!")
+            } else {
+                console.error(err)
+            }
         }
     }
 
