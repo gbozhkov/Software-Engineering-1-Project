@@ -159,6 +159,15 @@ app.post('/login', (req, res) => {
     })
 })
 
+// Destroy current session
+app.post('/logout', (req, res) => {
+    req.session.destroy(err => {
+        if (err) return res.status(500).json({ message: 'Unable to logout' })
+        res.clearCookie('connect.sid')
+        return res.json({ logout: true })
+    })
+})
+
 // Create a new club
 app.post('/createClub', (req, res) => {
     const values = [
@@ -310,13 +319,12 @@ app.post('/updateClub/:clubName', (req, res) => {
 
 app.put('/joinClubs/:clubName', (req, res) => {
     // Cerate the UPDATE query
-    const q = "UPDATE person SET club = ? WHERE username = ? AND password = ?"
+    const q = "UPDATE person SET club = ? WHERE username = ?"
     const clubName = req.params.clubName
     const username = req.body.username
-    const password = req.body.password
 
     // Execute the query
-    db.query(q, [clubName, username, password], (err, data) => {
+    db.query(q, [clubName, username], (err, data) => {
         if (err) return res.json(err)
         return res.json("Club joined successfully")
     })
@@ -330,7 +338,7 @@ app.put('/expell/:username', (req, res) => {
     // Execute the query
     db.query(q, username, (err, data) => {
         if (err) return res.json(err)
-        return res.json("Club joined successfully")
+        return res.json("User expelled successfully")
     })
 })
 
@@ -342,7 +350,7 @@ app.put('/accept/:username', (req, res) => {
     // Execute the query
     db.query(q, username, (err, data) => {
         if (err) return res.json(err)
-        return res.json("Club joined successfully")
+        return res.json("User accepted successfully")
     })
 })
 
@@ -354,7 +362,7 @@ app.put('/reject/:username', (req, res) => {
     // Execute the query
     db.query(q, username, (err, data) => {
         if (err) return res.json(err)
-        return res.json("Club joined successfully")
+        return res.json("User rejected successfully")
     })
 })
 
@@ -367,7 +375,7 @@ app.put('/promote/:username', (req, res) => {
     // Execute the query
     db.query(q, username, (err, data) => {
         if (err) return res.json(err)
-        return res.json("Club joined successfully")
+        return res.json("User promoted successfully")
     })
 })
 

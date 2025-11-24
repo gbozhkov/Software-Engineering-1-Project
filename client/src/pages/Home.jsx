@@ -9,7 +9,7 @@ const Home = () => {
     // State to hold clubs and events data
     const [clubs, setClubs] = useState([])
     const [events, setEvents] = useState([])
-    const [person, setperson] = useState([])
+    const [user, setUser] = useState(null)
 
     // Navigation hook to redirect
     const navigate = useNavigate()
@@ -22,7 +22,7 @@ const Home = () => {
         axios.get("http://localhost:3000/session")
         .then((res) => {
             if (res.data.valid) {
-                setperson(res.data)
+                setUser(res.data)
             } else {
                 navigate("/LogIn")
             }
@@ -58,18 +58,41 @@ const Home = () => {
         fetchData()
     }, [])
 
+    const handleLogout = async () => {
+        try {
+            await axios.post("http://localhost:3000/logout")
+            setUser(null)
+            navigate("/LogIn")
+        } catch (err) {
+            console.error(err)
+        }
+    }
+
+    if (!user) {
+        return (
+            <div>
+                <p style={{ textAlign: "center", opacity: 0.6 }}>Loading…</p>
+            </div>
+        )
+    }
+
     // Render clubs and events
     return (
         <div>
-            <h1>Welcome {person.username}</h1>
+            <div style={{textAlign: "center"}}>
+                <h1>Welcome {user.username}</h1>
+                <button onClick={handleLogout}>Log out</button>
+            </div>
             <h1>Club List</h1>
             <div className="clubs">
                 {<BrowseClubs clubs={clubs} />}
             </div>
-            <div className="createClub">
-                <h4>No club interest you?</h4>
-                <button><Link to={"/CreateClub"}>Create Club</Link></button>
-            </div>
+            {!user.club && (
+                <div className="createClub">
+                    <h4>No club interest you?</h4>
+                    <button><Link to={"/CreateClub"}>Create Club</Link></button>
+                </div>
+            )}
             <h1>Incoming Events</h1>
             <div className="events">
                 {events.map((event) => (

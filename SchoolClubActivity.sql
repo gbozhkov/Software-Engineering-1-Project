@@ -265,4 +265,4 @@ INSERT INTO comments (`date`, `comment`, `rating`, `username`, `clubName`) VALUE
 -- ===== Update clubs.memberCount to match actual inserted people (counts based on above inserts) =====
 UPDATE clubs SET memberCount = (
   SELECT COUNT(*) FROM person WHERE person.club = clubs.clubName AND person.role IN ('CL','VP','CM')
-) WHERE clubName IN ('Ski','Basketball','Baseball','Chess','Music','Drama','Photography','Robotics');
+) WHERE clubName IN ('Basketball','Book','Chess','Chess','Cooking','Gaming','Hiking','Music','Photography','Robotics','Ski');

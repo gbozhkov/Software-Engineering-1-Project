@@ -6,7 +6,6 @@ import Home from './pages/Home.jsx';
 import LogIn from './pages/LogIn.jsx';
 import CreateClub from './pages/CreateClub.jsx';
 import ClubPage from './pages/ClubPage.jsx';
-import JoinClub from './pages/JoinClub.jsx';
 import Comment from './pages/Comment.jsx';
 import CreateEvent from './pages/CreateEvent.jsx';
 import UpdateClub from './pages/UpdateClub.jsx';
@@ -22,7 +21,6 @@ function App() {
           <Route path="/LogIn" element={<LogIn/>} />
           <Route path="/CreateClub" element={<CreateClub/>} />
           <Route path="/ClubPage/:clubName" element={<ClubPage/>} />
-          <Route path="/JoinClub/:clubName" element={<JoinClub/>} />
           <Route path="/Comment/:clubName" element={<Comment/>} />
           <Route path="/CreateEvent/:clubName" element={<CreateEvent/>} />
           <Route path="/UpdateClub/:clubName" element={<UpdateClub/>} />

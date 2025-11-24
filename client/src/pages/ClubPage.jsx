@@ -11,6 +11,7 @@ const ClubPage = () => {
     const [events, setEvents] = useState([])
     const [person, setPerson] = useState([])
     const [comments, setComments] = useState([])
+    const [user, setUser] = useState(null)
 
     // Get club name from URL
     const location = useLocation()
@@ -18,6 +19,24 @@ const ClubPage = () => {
 
     // Navigation hook to return to home page after creation
     const navigate = useNavigate()
+
+    // Ensure axios sends cookies with requests
+    axios.defaults.withCredentials = true;
+
+    // Check user session on component mount
+    useEffect(() => {
+        axios.get("http://localhost:3000/session")
+        .then((res) => {
+            if (res.data.valid) {
+                setUser(res.data)
+            } else {
+                navigate("/LogIn")
+            }
+        })
+        .catch((err) => {
+            console.error(err)
+        })
+    }, [])
 
     // Fetch clubs data from backend
     useEffect(() => {
@@ -134,13 +153,32 @@ const ClubPage = () => {
         }
     }
 
-    const handleDelate = async (clubName) => {
+    const handleDelate = async (name) => {
         try {
-            await axios.delete("http://localhost:3000/clubs/" + clubName)
-            navigate("../../") // Navigate back to club page
+            await axios.delete("http://localhost:3000/clubs/" + name)
+            navigate("/") // Navigate back to club page
         } catch (err) {
             console.error(err)
         }
+    }
+
+    const handleJoin = async () => {
+        try {
+            await axios.put("http://localhost:3000/joinClubs/" + clubName, { username: user.username })
+            window.location.reload()
+        } catch (err) {
+            console.error(err)
+        }
+    }
+
+    const club = clubs[0] || null
+
+    if (!club) {
+        return (
+            <div className="club-page">
+                <p style={{ textAlign: "center", opacity: 0.6 }}>Loading club info…</p>
+            </div>
+        )
     }
 
     // Render club information
@@ -148,13 +186,11 @@ const ClubPage = () => {
         <div className="club-page">
 
             <main className="club-main">
-            {clubs.map((club) => (
-                <div className="club-header" key={club.clubName}>
+            <div className="club-header">
                 <h2>{club.clubName}</h2>
                 <p dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(club.description) }}></p>
-                </div>
-            ))}
-            <button><Link to={"/UpdateClub/" + clubName}>Update Info</Link></button>
+            </div>
+            {user && user.club === club.clubName && user.role === "CL" && (<button><Link to={"/UpdateClub/" + clubName}>Update Info</Link></button>)}
             <div className="events">
                 <h3 style={{margin: "0 0 0.5rem 0"}}>Events:</h3>
                 {events.length === 0 ? (
@@ -177,13 +213,13 @@ const ClubPage = () => {
                         </div>
                         <p className="event-description">{event.description}</p>
                         <div className="actions">
-                            {!event.accepted && (<button onClick={() => handleAcceptEvent(event.eventid)}>Accept</button>)}
-                            <button className="deletebtn" onClick={() => handleDelateEvent(event.eventid)}>Delete Event</button>
+                            {user && user.club === club.clubName && user.role === "CL" && !event.accepted && (<button onClick={() => handleAcceptEvent(event.eventid)}>Accept</button>)}
+                            {user && user.club === club.clubName && user.role === "CL" && (<button className="deletebtn" onClick={() => handleDelateEvent(event.eventid)}>Delete Event</button>)}
                         </div>
                     </div>
                 ))}
                 <div style={{marginTop: "0.5rem"}}>
-                <button><Link to={"/CreateEvent/" + clubName}>Create Event</Link></button>
+                {user && user.club === club.clubName && (user.role === "CL" || user.role === "VP") && (<button><Link to={"/CreateEvent/" + clubName}>Create Event</Link></button>)}
                 </div>
             </div>
             </main>
@@ -202,44 +238,48 @@ const ClubPage = () => {
                         </thead>
                         <tbody>
                             {person.filter((p) => p.role !== "STU").map((p) => (
-                                <tr key={p.username}>
+                                <tr key={p.username} style={user && user.username === p.username ? { fontWeight: 700 } : undefined}>
                                     <td>{p.username}</td>
                                     <td>{p.role}</td>
                                     <td>
-                                        {p.role === "CM" && (<button onClick={() => handlePromote(p.username)}>▲</button>)}
-                                        {p.role === "VP" && (<button onClick={() => handleAccept(p.username)}>▼</button>)}
-                                        {p.role !== "CL" && (<button className="deletebtn" onClick={() => handleExpell(p.username)} style={{margin: "0 0 0 0.5rem"}}>X</button>)}
+                                        {user && user.club === club.clubName && user.role === "CL" && p.role === "CM" && (<button onClick={() => handlePromote(p.username)}>▲</button>)}
+                                        {user && user.club === club.clubName && user.role === "CL" && p.role === "VP" && (<button onClick={() => handleAccept(p.username)}>▼</button>)}
+                                        {user && user.club === club.clubName && (user.role === "CL" || user.role === "VP") && p.role !== "CL" && (<button className="deletebtn" onClick={() => handleExpell(p.username)} style={{margin: "0 0 0 0.5rem"}}>X</button>)}
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                    <h3>Pending:</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {person.filter((p) => p.role === "STU").length === 0 ? (
+                    {user && user.club === club.clubName && (user.role === "CL" || user.role === "VP") && (
+                        <div>
+                            <h3>Pending:</h3>
+                            <table>
+                                <thead>
                                     <tr>
-                                        <td colSpan="2" style={{ textAlign: "center", opacity: 0.6 }}>
-                                            No enrollment
-                                        </td>
+                                        <th>Name</th>
+                                        <th></th>
                                     </tr>
-                                ) : person.filter((p) => p.role === "STU").map((p) => (
-                                <tr key={p.username}>
-                                    <td>{p.username}</td>
-                                    <td>
-                                        <button onClick={() => handleAccept(p.username)}>✓</button>
-                                        <button onClick={() => handleReject(p.username)} className="deletebtn" style={{margin: "0 0 0 0.5rem"}}>✖</button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                </thead>
+                                <tbody>
+                                    {person.filter((p) => p.role === "STU").length === 0 ? (
+                                            <tr>
+                                                <td colSpan="2" style={{ textAlign: "center", opacity: 0.6 }}>
+                                                    No enrollment
+                                                </td>
+                                            </tr>
+                                        ) : person.filter((p) => p.role === "STU").map((p) => (
+                                        <tr key={p.username}>
+                                            <td>{p.username}</td>
+                                            <td>
+                                                <button onClick={() => handleAccept(p.username)}>✓</button>
+                                                <button onClick={() => handleReject(p.username)} className="deletebtn" style={{margin: "0 0 0 0.5rem"}}>✖</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
                 </div>
                 <h3 style={{marginTop: "0.6rem"}}>Comments:</h3>
@@ -259,9 +299,7 @@ const ClubPage = () => {
                             </div>
                             <div className="comment-footer">
                                 {c.rating > 0 && (<div className="rating">⭐ {c.rating}/5</div>)}
-                                <div style={{marginLeft: "auto"}}>
-                                    <button className="deletebtn" onClick={() => handleDeleteComment(c.commentid)}>Delete</button>
-                                </div>
+                                {(user && (user.club === club.clubName && (user.role === "CL" || user.role === "VP")) || user.username === c.username) && (<div style={{marginLeft: "auto"}}><button className="deletebtn" onClick={() => handleDeleteComment(c.commentid)}>Delete</button></div>)}
                             </div>
                         </div>
                     ))}
@@ -269,12 +307,13 @@ const ClubPage = () => {
                 </div>
             </aside>
             <div>
-                <button><Link to={"../"}>Back</Link></button>&nbsp;
-                <button className="deletebtn" onClick={() => handleDelate(clubName)}>Delate Club</button>
+                <button><Link to={"/"}>Back</Link></button>
             </div>
             <div>
-                <button><Link to={`/JoinClub/${clubName}`}>Join Club</Link></button>&nbsp;
-                <button className="deletebtn" onClick={() => handleExpell(/*username*/)}>Quit club</button>
+                {user && !user.club && (<button onClick={() => user && handleJoin()}>Join club</button>)}
+                {user && user.club === club.clubName && (user.role === "VP" || user.role === "CM") && (<button className="deletebtn" onClick={() => user && handleExpell(user.username)}>Quit club</button>)}
+                {user && user.club === club.clubName && user.role === "STU" && (<button className="deletebtn" onClick={() => user && handleExpell(user.username)}>Cancel request</button>)}
+                {user && user.club === club.clubName && user.role === "CL" && (<button className="deletebtn" onClick={() => handleDelate(clubName)}>Delate Club</button>)}
             </div>
         </div>
     )

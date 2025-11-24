@@ -20,7 +20,7 @@ export default function BrowseClubs({ clubs }) {
   const [status, setStatus] = useState("all"); // full, notFull, all
   const [orderBy, setOrderBy] = useState("membersAsc"); // nameAsc, nameDesc, membersDesc
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 6; // clubs per page
+  const [pageSize, setPageSize] = useState(6); // clubs per page
 
   // Filter and sort clubs
   const filteredClubs = useMemo(() => {
@@ -85,6 +85,21 @@ export default function BrowseClubs({ clubs }) {
               <option value="membersDesc">Members ↓</option>
               <option value="nameAsc">Name ↑</option>
               <option value="nameDesc">Name ↓</option>
+            </select>
+          </label>
+
+          <label>
+            Page size:
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value))
+                setCurrentPage(1)
+              }}
+            >
+              <option value={6}>6</option>
+              <option value={9}>9</option>
+              <option value={12}>12</option>
             </select>
           </label>
         </div>
