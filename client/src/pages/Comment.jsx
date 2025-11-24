@@ -1,6 +1,6 @@
 // Page for creating a new club
 
-import { React, useState } from "react"
+import { React, useState, useEffect } from "react"
 import axios from "axios"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 
@@ -9,11 +9,12 @@ const CommentPage = () => {
     const location = useLocation()
     const clubName = location.pathname.split("/")[2]
 
-    // State for club details
+    // State for club details and user info
+    const [user, setUser] = useState(null)
     const [comment, setComment] = useState({
         comment: "",
         rating: 0,
-        username: "Francesco", // ---> UPDATE: replace with actual logged-in user <---
+        username: "",
         clubName: clubName
     })
 
@@ -22,7 +23,7 @@ const CommentPage = () => {
 
     // Handle input changes and update state
     const handleChange = (e) => {
-        setComment((prev) => ({...prev, [e.target.name]: e.target.value}))
+        setComment((prev) => ({...prev, [e.target.name]: e.target.value, username: user.username}))
     }
 
     // Handle form submission to create a new club
@@ -37,6 +38,21 @@ const CommentPage = () => {
             console.error(err)
         }
     }
+
+    // Check user session on component mount
+    useEffect(() => {
+        axios.get("http://localhost:3000/session")
+        .then((res) => {
+            if (res.data.valid) {
+                setUser(res.data)
+            } else {
+                navigate("/LogIn")
+            }
+        })
+        .catch((err) => {
+            console.error(err)
+        })
+    }, [])
     
     // Render the create club form
     return (
