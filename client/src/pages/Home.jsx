@@ -2,13 +2,35 @@
 
 import { React, useEffect, useState } from "react"
 import axios from "axios"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import BrowseClubs from "./BrowseClub.jsx";
 
 const Home = () => {
     // State to hold clubs and events data
     const [clubs, setClubs] = useState([])
     const [events, setEvents] = useState([])
+    const [person, setperson] = useState([])
+
+    // Navigation hook to redirect
+    const navigate = useNavigate()
+    
+    // Ensure axios sends cookies with requests
+    axios.defaults.withCredentials = true;
+
+    // Check user session on component mount
+    useEffect(() => {
+        axios.get("http://localhost:3000/session")
+        .then((res) => {
+            if (res.data.valid) {
+                setperson(res.data)
+            } else {
+                navigate("/LogIn")
+            }
+        })
+        .catch((err) => {
+            console.error(err)
+        })
+    }, [])
 
     // Fetch clubs data from backend
     useEffect(() => {
@@ -39,6 +61,7 @@ const Home = () => {
     // Render clubs and events
     return (
         <div>
+            <h1>Welcome {person.username}</h1>
             <h1>Club List</h1>
             <div className="clubs">
                 {<BrowseClubs clubs={clubs} />}

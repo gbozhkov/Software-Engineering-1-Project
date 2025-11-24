@@ -1,6 +1,6 @@
 // Page for user login
 
-import { React, useState } from "react"
+import { React, useState, useEffect } from "react"
 import axios from "axios"
 import { useNavigate } from "react-router-dom"
 
@@ -10,6 +10,9 @@ const LogIn = () => {
         username: "",
         password: "",
     })
+
+    // Ensure axios sends cookies with requests
+    axios.defaults.withCredentials = true;
 
     // Navigation hook to redirect to home page after login
     const navigate = useNavigate()
@@ -25,11 +28,10 @@ const LogIn = () => {
         try {
             // Send POST request to backend to get user role and club
             const res = await axios.post("http://localhost:3000/login", credential)
-            if (res.data.length > 0) {
-                // If valid credentials, navigate to home with role and club
-                const user = res.data[0]
-                navigate("../?username=" + credential.username + "&role=" + user.role + "&club=" + user.club)
-            }else {
+            if (res.data.login) {
+                // If valid credentials, navigate to home with role and 
+                navigate("/")
+            } else {
                 // If invalid credentials, show alert
                 alert("Invalid credentials")
             }
@@ -38,6 +40,17 @@ const LogIn = () => {
             console.error(err)
         }
     }
+
+    // Check user session on component mount
+    useEffect(() => {
+        axios.get("http://localhost:3000/session")
+        .then((res) => {
+            if (res.data.valid) navigate("/")
+        })
+        .catch((err) => {
+            console.error(err)
+        })
+    }, [])
 
     // Render the login form
     return (

@@ -3,9 +3,32 @@
 import express from 'express'
 import mysql from 'mysql2'
 import cors from 'cors'
+import session from 'express-session'
+import cookieParser from 'cookie-parser'
+import bodyParser from 'body-parser'
 
 // Initialize express app
 const app = express()
+app.use(express.json())
+app.use(cors({
+    origin: [
+        'http://localhost:5173',
+        'http://localhost:3000'
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+}))
+app.use(cookieParser())
+app.use(bodyParser.json())
+app.use(session({
+    secret: 'secret',
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+        secure: false,
+        maxAge: 24 * 60 * 60 * 1000 // 1 day
+    }
+}))
 
 // Create a connection to the database
 // USE YOUR OWN DATABASE CREDENTIALS
@@ -26,9 +49,14 @@ db.connect(err => {
   console.log('Connected to MySQL via mysql2')
 })
 
-// Middleware
-app.use(express.json())
-app.use(cors())
+// Get session info
+app.get('/session', (req, res) => {
+    if (req.session.username) {
+        return res.json({ valid: true, username: req.session.username, role: req.session.role, club: req.session.club })
+    } else {
+        return res.json({ valid: false })
+    }
+})
 
 // Get all clubs
 app.get('/clubs', (req, res) => {
@@ -110,7 +138,7 @@ app.get('/events', (req, res) => {
 // User login
 app.post('/login', (req, res) => {
     // Create the SELECT query
-    const q = "SELECT role, club FROM person WHERE username = ? AND password = ?"
+    const q = "SELECT * FROM person WHERE username = ? AND password = ?"
     const values = [
         req.body.username,
         req.body.password
@@ -119,7 +147,15 @@ app.post('/login', (req, res) => {
     // Execute the query
     db.query(q, values, (err, data) => {
         if (err) return res.json(err)
-        return res.json(data)
+        
+        if (data.length > 0) {
+            req.session.username = data[0].username
+            req.session.role = data[0].role
+            req.session.club = data[0].club
+            return res.json({ login: true })
+        } else {
+            return res.json({ login: false })
+        }
     })
 })
 
