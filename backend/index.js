@@ -6,6 +6,7 @@ import cors from 'cors'
 import session from 'express-session'
 import cookieParser from 'cookie-parser'
 import bodyParser from 'body-parser'
+import bcrypt from 'bcrypt'
 
 // Initialize express app
 const app = express()
@@ -65,6 +66,29 @@ const refreshSessionForUser = (req, username) => {
             resolve()
         })
     })
+}
+
+const SALT_ROUNDS = 10
+
+const hashPassword = plain => {
+    return new Promise((resolve, reject) => {
+        bcrypt.hash(plain, SALT_ROUNDS, (err, hash) => {
+            if (err) return reject(err)
+            resolve(hash)
+        })
+    })
+}
+
+const upgradePasswordIfNeeded = (user, suppliedPassword) => {
+    if (!user.password || user.password.startsWith('$2')) return Promise.resolve()
+    return hashPassword(suppliedPassword)
+        .then(hash => new Promise((resolve, reject) => {
+            const q = 'UPDATE person SET password = ? WHERE username = ?'
+            db.query(q, [hash, user.username], err => {
+                if (err) return reject(err)
+                resolve()
+            })
+        }))
 }
 
 const updateMemberCount = (clubName, delta) => {
@@ -168,24 +192,70 @@ app.get('/events', (req, res) => {
 // User login
 app.post('/login', (req, res) => {
     // Create the SELECT query
-    const q = "SELECT * FROM person WHERE username = ? AND password = ?"
-    const values = [
-        req.body.username,
-        req.body.password
-    ]
+    const q = "SELECT * FROM person WHERE username = ? LIMIT 1"
 
     // Execute the query
-    db.query(q, values, (err, data) => {
+    db.query(q, [req.body.username], async (err, data) => {
         if (err) return res.status(500).json(err)
-        
-        if (data.length > 0) {
-            req.session.username = data[0].username
-            req.session.role = data[0].role
-            req.session.club = data[0].club
-            return res.status(200).json({ login: true })
-        } else {
+
+        if (data.length === 0) {
             return res.status(401).json({ login: false })
         }
+
+        const user = data[0]
+        const storedPassword = user.password || ''
+        let isValidPassword = false
+
+        if (storedPassword.startsWith('$2')) {
+            try {
+                isValidPassword = await bcrypt.compare(req.body.password, storedPassword)
+            } catch (compareErr) {
+                return res.status(500).json(compareErr)
+            }
+        } else {
+            isValidPassword = storedPassword === req.body.password
+        }
+
+        if (!isValidPassword) {
+            return res.status(401).json({ login: false })
+        }
+
+        upgradePasswordIfNeeded(user, req.body.password).catch(err => console.error('Auto-upgrade password failed', err))
+
+        req.session.username = user.username
+        req.session.role = user.role
+        req.session.club = user.club
+        return res.status(200).json({ login: true })
+    })
+})
+
+// Temporary endpoint to create accounts for debugging purposes
+// UPDATE: DELETE
+app.post('/createAccount', async (req, res) => {
+    const { username, password } = req.body
+
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required' })
+    }
+
+    const checkQuery = 'SELECT username FROM person WHERE username = ? LIMIT 1'
+
+    db.query(checkQuery, [username], async (err, data) => {
+        if (err) return res.status(500).json(err)
+        if (data.length > 0) return res.status(409).json({ message: 'User already exists' })
+
+        let hashedPassword
+        try {
+            hashedPassword = await hashPassword(password)
+        } catch (hashErr) {
+            return res.status(500).json(hashErr)
+        }
+
+        const insertQuery = 'INSERT INTO person (username, password, role, club) VALUES (?, ?, \'STU\', NULL)'
+        db.query(insertQuery, [username, hashedPassword], err => {
+            if (err) return res.status(500).json(err)
+            return res.status(201).json({ created: true })
+        })
     })
 })
 
