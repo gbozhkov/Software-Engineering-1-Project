@@ -49,6 +49,24 @@ db.connect(err => {
   console.log('Connected to MySQL via mysql2')
 })
 
+// Reload session values from DB when the logged-in user is updated
+const refreshSessionForUser = (req, username) => {
+        if (!req.session || req.session.username !== username) return Promise.resolve()
+
+        return new Promise((resolve, reject) => {
+                const q = 'SELECT username, role, club FROM person WHERE username = ? LIMIT 1'
+                db.query(q, username, (err, data) => {
+                        if (err) return reject(err)
+                        if (data.length > 0) {
+                                req.session.username = data[0].username
+                                req.session.role = data[0].role
+                                req.session.club = data[0].club
+                        }
+                        resolve()
+                })
+        })
+}
+
 // Get session info
 app.get('/session', (req, res) => {
     if (req.session.username) {
@@ -326,7 +344,9 @@ app.put('/joinClubs/:clubName', (req, res) => {
     // Execute the query
     db.query(q, [clubName, username], (err, data) => {
         if (err) return res.json(err)
-        return res.json("Club joined successfully")
+        refreshSessionForUser(req, username)
+            .then(() => res.json("Club joined successfully"))
+            .catch(syncErr => res.status(500).json(syncErr))
     })
 })
 
@@ -338,7 +358,9 @@ app.put('/expell/:username', (req, res) => {
     // Execute the query
     db.query(q, username, (err, data) => {
         if (err) return res.json(err)
-        return res.json("User expelled successfully")
+        refreshSessionForUser(req, username)
+            .then(() => res.json("User expelled successfully"))
+            .catch(syncErr => res.status(500).json(syncErr))
     })
 })
 
@@ -350,7 +372,9 @@ app.put('/accept/:username', (req, res) => {
     // Execute the query
     db.query(q, username, (err, data) => {
         if (err) return res.json(err)
-        return res.json("User accepted successfully")
+        refreshSessionForUser(req, username)
+            .then(() => res.json("User accepted successfully"))
+            .catch(syncErr => res.status(500).json(syncErr))
     })
 })
 
@@ -362,7 +386,9 @@ app.put('/reject/:username', (req, res) => {
     // Execute the query
     db.query(q, username, (err, data) => {
         if (err) return res.json(err)
-        return res.json("User rejected successfully")
+        refreshSessionForUser(req, username)
+            .then(() => res.json("User rejected successfully"))
+            .catch(syncErr => res.status(500).json(syncErr))
     })
 })
 
@@ -375,7 +401,9 @@ app.put('/promote/:username', (req, res) => {
     // Execute the query
     db.query(q, username, (err, data) => {
         if (err) return res.json(err)
-        return res.json("User promoted successfully")
+        refreshSessionForUser(req, username)
+            .then(() => res.json("User promoted successfully"))
+            .catch(syncErr => res.status(500).json(syncErr))
     })
 })
 
