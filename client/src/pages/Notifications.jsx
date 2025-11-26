@@ -50,6 +50,16 @@ const Notifications = () => {
     }
   }
 
+  const markUnread = async (id) => {
+    try {
+      await api.put(`/notifications/${id}/unread`)
+      fetchNotifications(meta.page)
+    } catch (err) {
+      console.error(err)
+      alert("Unable to update notification")
+    }
+  }
+
   if (!session) return <p style={{ textAlign: "center" }}>Login to view notifications.</p>
 
   return (
@@ -94,7 +104,11 @@ const Notifications = () => {
             </div>
             <div className="notification-actions">
               {n.link && <Link className="btn" to={n.link}>Open</Link>}
-              {!n.isRead && <button onClick={() => markRead(n.notificationid)}>Mark read</button>}
+              {!n.isRead ? (
+                <button onClick={() => markRead(n.notificationid)}>Mark read</button>
+              ) : (
+                <button className="btn-ghost" onClick={() => markUnread(n.notificationid)}>Mark unread</button>
+              )}
             </div>
           </div>
         ))}

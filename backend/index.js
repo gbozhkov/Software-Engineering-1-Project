@@ -646,6 +646,20 @@ app.put('/notifications/:id/read', requireAuth, async (req, res) => {
   }
 })
 
+app.put('/notifications/:id/unread', requireAuth, async (req, res) => {
+  const id = req.params.id
+  try {
+    const [rows] = await dbp.query('SELECT username FROM notifications WHERE notificationid = ?', [id])
+    if (rows.length === 0) return res.status(404).json({ message: 'Notification not found' })
+    if (rows[0].username !== req.user.username) return forbidden(res)
+    await dbp.query('UPDATE notifications SET isRead = 0 WHERE notificationid = ?', [id])
+    return res.json({ message: 'Notification marked as unread' })
+  } catch (err) {
+    console.error('Update notification failed', err)
+    return res.status(500).json({ message: 'Failed to update notification' })
+  }
+})
+
 // Basic error handler fallback
 app.use((err, req, res, next) => {
   console.error('Unhandled error', err)
