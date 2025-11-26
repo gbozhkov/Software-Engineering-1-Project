@@ -1,6 +1,7 @@
-import { React, useState, useMemo } from "react";
+import { React, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import DOMPurify from 'dompurify';
+import api from "../api";
 
 // Progress bar component
 const ProgressBar = ({ percentage }) => {
@@ -14,44 +15,70 @@ const ProgressBar = ({ percentage }) => {
   );
 };
 
-export default function BrowseClubs({ clubs }) {
+export default function BrowseClubs() {
+  const [clubs, setClubs] = useState([]);
+  const [meta, setMeta] = useState({ page: 1, pages: 1, total: 0 });
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [status, setStatus] = useState("all"); // full, notFull, all
   const [orderBy, setOrderBy] = useState("membersAsc"); // nameAsc, nameDesc, membersDesc
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 6; // clubs per page
+  const [limit, setLimit] = useState(6);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Filter and sort clubs
-  const filteredClubs = useMemo(() => {
-    let result = clubs.filter(club =>
-      club.clubName.toLowerCase().includes(search.toLowerCase())
-    );
-
-    if (status === "full") result = result.filter(c => c.memberCount >= c.memberMax);
-    if (status === "notFull") result = result.filter(c => c.memberCount < c.memberMax);
-
+  const mappedOrder = () => {
     switch (orderBy) {
       case "nameAsc":
-        result.sort((a, b) => a.clubName.localeCompare(b.clubName));
-        break;
+        return { orderBy: "clubName", order: "asc" };
       case "nameDesc":
-        result.sort((a, b) => b.clubName.localeCompare(a.clubName));
-        break;
-      case "membersAsc":
-        result.sort((a, b) => a.memberCount - b.memberCount);
-        break;
+        return { orderBy: "clubName", order: "desc" };
       case "membersDesc":
-        result.sort((a, b) => b.memberCount - a.memberCount);
-        break;
+        return { orderBy: "memberCount", order: "desc" };
+      case "membersAsc":
+      default:
+        return { orderBy: "memberCount", order: "asc" };
     }
+  };
 
-    return result;
-  }, [clubs, search, status, orderBy]);
+  const loadClubs = async () => {
+    setLoading(true);
+    setError("");
+    const { orderBy: ob, order } = mappedOrder();
+    try {
+      const res = await api.get("/clubs", {
+        params: {
+          q: search,
+          status,
+          orderBy: ob,
+          order,
+          page: currentPage,
+          limit
+        }
+      });
+      const payload = res.data.data ? res.data.data : res.data;
+      setClubs(payload);
+      setMeta({
+        page: res.data.page || 1,
+        pages: res.data.pages || Math.max(1, Math.ceil(payload.length / limit)),
+        total: res.data.total || payload.length
+      });
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load clubs.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Pagination
-  const totalPages = Math.ceil(filteredClubs.length / pageSize);
-  const pagedClubs = filteredClubs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, status, orderBy, limit]);
+
+  useEffect(() => {
+    loadClubs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, status, orderBy, currentPage, limit]);
 
   return (
     <div className="browse-page">
@@ -65,6 +92,8 @@ export default function BrowseClubs({ clubs }) {
         />
         <button onClick={() => setFilterOpen(!filterOpen)}>≡</button>
       </div>
+
+      {error && <div className="alert error">{error}</div>}
 
       {/* Filter panel */}
       {filterOpen && (
@@ -87,12 +116,23 @@ export default function BrowseClubs({ clubs }) {
               <option value="nameDesc">Name ↓</option>
             </select>
           </label>
+          <label>
+            Per page:
+            <select value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
+              <option value={3}>3</option>
+              <option value={6}>6</option>
+              <option value={9}>9</option>
+              <option value={12}>12</option>
+            </select>
+          </label>
         </div>
       )}
 
+      {loading && <p style={{ textAlign: "center", opacity: 0.6 }}>Loading...</p>}
+
       {/* Clubs grid */}
       <div className="clubs-grid">
-        {pagedClubs.map((club) => (
+        {clubs.map((club) => (
           <div className="club card" key={club.clubName}>
             <h2>{club.clubName}</h2>
             <p dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(club.description) }}></p>
@@ -105,7 +145,7 @@ export default function BrowseClubs({ clubs }) {
 
       {/* Pagination */}
       <div className="pagination">
-        {Array.from({ length: totalPages }, (_, i) => (
+        {Array.from({ length: meta.pages }, (_, i) => (
           <button
             key={i}
             className={currentPage === i + 1 ? "active" : ""}
@@ -114,6 +154,7 @@ export default function BrowseClubs({ clubs }) {
             {i + 1}
           </button>
         ))}
+        <span className="pagination-meta">{meta.total} results</span>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 -- DROP IN CORRECT ORDER (because of foreign keys)
+DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS person;
@@ -11,11 +12,11 @@ CREATE TABLE `clubs` (
     `memberCount` int NOT NULL COMMENT 'Current number of members in the club',
     `memberMax` int NOT NULL COMMENT 'Maximum allowed members in the club',
     PRIMARY KEY (`clubName`)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 CREATE TABLE `person` (
     `username` varchar(255) NOT NULL COMMENT 'Unique username for each person',
-    `password` text NOT NULL COMMENT 'Password for the user account',
+    `password` varchar(255) NOT NULL COMMENT 'Password hash for the user account (bcrypt)',
     `role` text NOT NULL COMMENT 'Role of the person in the club (CL, VP, CM, STU)',
     `club` varchar(255) DEFAULT NULL COMMENT 'The club the person is associated with; NULL if not a member of any club; STU + club means pending membership',
     `sessionId` varchar(255) DEFAULT NULL COMMENT 'Session identifier for logged-in users; NULL if not logged in',
@@ -23,7 +24,7 @@ CREATE TABLE `person` (
     UNIQUE KEY `sessionId` (`sessionId`),
     KEY `club` (`club`),
     CONSTRAINT `person_ibfk_1` FOREIGN KEY (`club`) REFERENCES `clubs` (`clubName`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 CREATE TABLE `events` (
     `eventid` int NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier for each event',
@@ -36,7 +37,7 @@ CREATE TABLE `events` (
     PRIMARY KEY (`eventid`),
     KEY `clubName` (`clubName`),
     CONSTRAINT `events_ibfk_1` FOREIGN KEY (`clubName`) REFERENCES `clubs` (`clubName`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB AUTO_INCREMENT = 22 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
+) ENGINE = InnoDB AUTO_INCREMENT = 22 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 CREATE TABLE `comments` (
     `commentid` int NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier for each comment',
@@ -50,7 +51,23 @@ CREATE TABLE `comments` (
     KEY `clubName` (`clubName`),
     CONSTRAINT `comments_ibfk_3` FOREIGN KEY (`username`) REFERENCES `person` (`username`) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT `comments_ibfk_4` FOREIGN KEY (`clubName`) REFERENCES `clubs` (`clubName`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB AUTO_INCREMENT = 12 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
+) ENGINE = InnoDB AUTO_INCREMENT = 12 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+CREATE TABLE `notifications` (
+    `notificationid` int NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier for each notification',
+    `username` varchar(255) NOT NULL COMMENT 'Recipient username',
+    `clubName` varchar(255) DEFAULT NULL COMMENT 'Associated club if any',
+    `type` varchar(50) NOT NULL DEFAULT 'info' COMMENT 'Category of notification',
+    `message` text NOT NULL COMMENT 'Notification body',
+    `link` text DEFAULT NULL COMMENT 'Optional link for the client to open',
+    `isRead` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Whether the notification was read',
+    `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation timestamp',
+    PRIMARY KEY (`notificationid`),
+    KEY `username` (`username`),
+    KEY `clubName` (`clubName`),
+    CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`username`) REFERENCES `person` (`username`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `notifications_ibfk_2` FOREIGN KEY (`clubName`) REFERENCES `clubs` (`clubName`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 -- ===== CLUBS =====
 INSERT INTO clubs (`clubName`, `description`, `memberCount`, `memberMax`) VALUES
@@ -63,70 +80,95 @@ INSERT INTO clubs (`clubName`, `description`, `memberCount`, `memberMax`) VALUES
 ('Music', '<p>Chamber groups and open jam nights. Rehearsals Wed 18:00-20:30.</p>', 16, 40),
 ('Chess', '<p>Casual play and weekly rated matches. Coaching for beginners.</p>', 9, 20),
 ('Hiking', '<p>Day hikes and overnight treks. Safety briefing mandatory for multi-day trips.</p>', 13, 35),
-('Gaming', '<p>Board games, tabletop RPGs and esports viewing parties. Newcomers welcome.</p>', 20, 60);
+('Gaming', '<p>Board games, tabletop RPGs and esports viewing parties. Newcomers welcome.</p>', 20, 60),
+('Debate', '<p>British parliamentary and public speaking practice. Weekly scrimmages on Thu 18:30.</p>', 11, 30),
+('Drama', '<p>Scene studies, improv, and semester productions. Rehearsals Mon/Wed 19:00.</p>', 14, 35),
+('Environmental', '<p>Campus sustainability projects, cleanups, and green tech talks.</p>', 10, 40),
+('Coding', '<p>Weekly coding dojos, hack nights, and interview prep. All levels welcome.</p>', 18, 50),
+('Dance', '<p>Contemporary, hip-hop, and salsa sessions. Open classes Tue/Fri evenings.</p>', 15, 40);
 
 -- ===== PERSONS =====
 INSERT INTO person (`username`, `password`, `role`, `club`, `sessionId`) VALUES
-('Francesco','$2y$10$frscopasshash','CM','Ski',NULL),
-('Samuele','$2y$10$samuelepass','STU','Ski',NULL),
-('Ari','$2y$10$aripass','CM','Ski','sess_ari_01'),
-('Luca','$2y$10$lucapass','CL','Ski','sess_luca_9'),
-('Marta','$2y$10$martapass','VP','Ski',NULL),
-('Giorgie','$2y$10$giorgiepass','CM','Basketball',NULL),
-('Ayoub','$2y$10$ayoubpass','CL','Basketball','sess_ayoub_x'),
-('Hana','$2y$10$hanapass','VP','Basketball',NULL),
-('Marco_b','$2y$10$marcob','CM','Basketball',NULL),
-('Sophia','$2y$10$sophiapass','STU',NULL,NULL),
-('Noah','$2y$10$noahpass','CL','Robotics','sess_noah'),
-('Isabella','$2y$10$isapass','VP','Robotics',NULL),
-('Kai','$2y$10$kaipass','CM','Robotics',NULL),
-('Emma','$2y$10$emmapass','STU','Robotics',NULL),
-('Oliver','$2y$10$olipass','CM',NULL,NULL),
-('Clara','$2y$10$clarapass','CL','Book',NULL),
-('David','$2y$10$davidpass','VP','Book','sess_david_7'),
-('Sara','$2y$10$sarapass','CM','Book',NULL),
-('Paul','$2y$10$paulpass','STU',NULL,NULL),
-('Nina','$2y$10$ninapass','CM','Book',NULL),
-('Mike','$2y$10$mikepass','CL','Photography','sess_mike_p'),
-('Elena','$2y$10$elenapass','VP','Photography',NULL),
-('Tomas','$2y$10$tomaspass','CM','Photography',NULL),
-('Zoe','$2y$10$zoepass','STU','Photography',NULL),
-('Ivan','$2y$10$ivanpass','CM',NULL,NULL),
-('Sofia','$2y$10$sofiapass','CL','Cooking',NULL),
-('Raoul','$2y$10$raoulpass','VP','Cooking',NULL),
-('Lena','$2y$10$lenapass','CM','Cooking',NULL),
-('Ben','$2y$10$benpass','STU',NULL,NULL),
-('Yasmin','$2y$10$yasminpass','CM','Cooking',NULL),
-('Olga','$2y$10$olgapass','CL','Music','sess_olga'),
-('Christian','$2y$10$christian','VP','Music',NULL),
-('Karen','$2y$10$karenpass','CM','Music',NULL),
-('Matt','$2y$10$mattpass','STU','Music',NULL),
-('Daria','$2y$10$dariapass','CM',NULL,NULL),
-('Arthur','$2y$10$arthurpass','CL','Chess',NULL),
-('Bea','$2y$10$beapass','VP','Chess',NULL),
-('Zach','$2y$10$zachpass','CM','Chess',NULL),
-('Oliver_q','$2y$10$oliverq','STU',NULL,NULL),
-('Paula','$2y$10$paulapass','CM','Chess',NULL),
-('Sylvia','$2y$10$sylviapass','CL','Hiking','sess_sylvia'),
-('Jorge','$2y$10$jorgepass','VP','Hiking',NULL),
-('Mina','$2y$10$minapass','CM','Hiking',NULL),
-('Kevin','$2y$10$kevinpass','STU','Hiking',NULL),
-('Robin','$2y$10$robinpass','CM',NULL,NULL),
-('Alex','$2y$10$alexpass','CL','Gaming',NULL),
-('Bella','$2y$10$bellapass','VP','Gaming','sess_bella'),
-('Chris','$2y$10$chrispass','CM','Gaming',NULL),
-('Nora','$2y$10$norapass','STU','Gaming',NULL),
-('Quentin','$2y$10$quentinpass','CM',NULL,NULL),
-('Mussolini','$2y$10$mussolini','STU',NULL,NULL),
-('Giorgia','$2y$10$giorgia','STU',NULL,NULL),
-('Sandra','$2y$10$sandrapass','CM',NULL,NULL),
-('Leo','$2y$10$leopass','STU',NULL,NULL),
-('Martin','$2y$10$martinpass','CM',NULL,NULL),
-('Fernanda','$2y$10$fernandapass','STU','Ski',NULL),
-('Igor','$2y$10$igorpass','CM','Ski',NULL),
-('Yvonne','$2y$10$yvonnepass','STU','Basketball',NULL),
-('Harry','$2y$10$harrypass','CM','Basketball',NULL),
-('Eva','$2y$10$evapass','STU','Hiking',NULL);
+('Francesco','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Ski',NULL),
+('Samuele','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Ski',NULL),
+('Ari','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Ski','sess_ari_01'),
+('Luca','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Ski','sess_luca_9'),
+('Marta','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Ski',NULL),
+('Giorgie','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Basketball',NULL),
+('Ayoub','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Basketball','sess_ayoub_x'),
+('Hana','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Basketball',NULL),
+('Marco_b','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Basketball',NULL),
+('Sophia','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU',NULL,NULL),
+('Noah','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Robotics','sess_noah'),
+('Isabella','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Robotics',NULL),
+('Kai','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Robotics',NULL),
+('Emma','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Robotics',NULL),
+('Oliver','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM',NULL,NULL),
+('Clara','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Book',NULL),
+('David','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Book','sess_david_7'),
+('Sara','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Book',NULL),
+('Paul','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU',NULL,NULL),
+('Nina','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Book',NULL),
+('Mike','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Photography','sess_mike_p'),
+('Elena','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Photography',NULL),
+('Tomas','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Photography',NULL),
+('Zoe','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Photography',NULL),
+('Ivan','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM',NULL,NULL),
+('Sofia','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Cooking',NULL),
+('Raoul','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Cooking',NULL),
+('Lena','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Cooking',NULL),
+('Ben','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU',NULL,NULL),
+('Yasmin','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Cooking',NULL),
+('Olga','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Music','sess_olga'),
+('Christian','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Music',NULL),
+('Karen','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Music',NULL),
+('Matt','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Music',NULL),
+('Daria','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM',NULL,NULL),
+('Arthur','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Chess',NULL),
+('Bea','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Chess',NULL),
+('Zach','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Chess',NULL),
+('Oliver_q','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU',NULL,NULL),
+('Paula','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Chess',NULL),
+('Sylvia','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Hiking','sess_sylvia'),
+('Jorge','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Hiking',NULL),
+('Mina','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Hiking',NULL),
+('Kevin','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Hiking',NULL),
+('Robin','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM',NULL,NULL),
+('Alex','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Gaming',NULL),
+('Bella','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Gaming','sess_bella'),
+('Chris','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Gaming',NULL),
+('Nora','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Gaming',NULL),
+('Quentin','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM',NULL,NULL),
+('Mussolini','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU',NULL,NULL),
+('Giorgia','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU',NULL,NULL),
+('Sandra','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM',NULL,NULL),
+('Leo','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU',NULL,NULL),
+('Martin','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM',NULL,NULL),
+('Fernanda','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Ski',NULL),
+('Igor','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Ski',NULL),
+('Yvonne','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Basketball',NULL),
+('Harry','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Basketball',NULL),
+('Eva','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Hiking',NULL),
+('Nicolas','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Debate',NULL),
+('Priya','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Debate',NULL),
+('Hector','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Debate',NULL),
+('Julia','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Debate',NULL),
+('Amelia','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Drama',NULL),
+('Simon','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Drama',NULL),
+('Carla','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Drama',NULL),
+('Talia','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Drama',NULL),
+('Greta','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Environmental',NULL),
+('Kenji','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Environmental',NULL),
+('Mo','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Environmental',NULL),
+('Ivy','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Environmental',NULL),
+('Ethan','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Coding',NULL),
+('Rina','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Coding',NULL),
+('Toby','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Coding',NULL),
+('Wei','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Coding',NULL),
+('Layla','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Dance',NULL),
+('Diego','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Dance',NULL),
+('Helena','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Dance',NULL),
+('Milan','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','STU','Dance',NULL);
 
 -- ==== EVENTS =====
 INSERT INTO events (`startDate`, `endDate`, `title`, `description`, `accepted`, `clubName`) VALUES
@@ -179,7 +221,17 @@ INSERT INTO events (`startDate`, `endDate`, `title`, `description`, `accepted`, 
 ('2024-11-29 19:00:00','2024-11-29 02:00:00','LAN Party','Overnight esports LAN - BYO equipment.',1,'Gaming'),
 ('2025-06-07 17:00:00',NULL,'RPG Marathon','One-shot and campaign sessions across tables.',1,'Gaming'),
 ('2025-12-12 18:00:00','2025-12-12 22:00:00','Holiday Swap & Sale','Buy/sell/trade board games and accessories.',0,'Gaming'),
-('2025-08-30 20:00:00','2025-08-30 23:00:00','Retro Console Night','Bring classic consoles for casual play.',1,'Gaming');
+('2025-08-30 20:00:00','2025-08-30 23:00:00','Retro Console Night','Bring classic consoles for casual play.',1,'Gaming'),
+('2025-03-15 18:00:00','2025-03-15 21:00:00','Parliamentary Scrimmage','Friendly BP rounds with feedback.',1,'Debate'),
+('2025-04-02 17:00:00','2025-04-02 19:00:00','Public Speaking Workshop','Voice, posture, and persuasive structure.',1,'Debate'),
+('2025-05-10 19:30:00',NULL,'One-Act Showcase','Student-directed one-acts on main stage.',0,'Drama'),
+('2025-06-18 18:00:00','2025-06-18 21:00:00','Improv Night','Yes-and drills and games; open to all.',1,'Drama'),
+('2025-04-20 09:00:00','2025-04-20 12:00:00','Campus Cleanup','Gloves and bags provided; meet at quad.',1,'Environmental'),
+('2025-05-05 17:30:00','2025-05-05 19:00:00','Sustainability Talk: Solar 101','Guest speaker on small-scale solar installs.',1,'Environmental'),
+('2025-03-12 18:00:00','2025-03-12 21:00:00','Hack Night: Build a Todo API','Pair programming and pizza.',1,'Coding'),
+('2025-04-08 18:00:00','2025-04-08 20:00:00','Interview Prep Sprint','Mock interviews + resume clinic.',1,'Coding'),
+('2025-03-22 19:00:00','2025-03-22 21:00:00','Salsa Social','Beginner-friendly lesson then social dance.',1,'Dance'),
+('2025-04-14 18:30:00','2025-04-14 20:30:00','Hip-Hop Choreo Workshop','Learn a full routine; all levels.',1,'Dance');
 
 -- ==== COMMENTS =====
 INSERT INTO comments (`date`, `comment`, `rating`, `username`, `clubName`) VALUES
@@ -262,9 +314,27 @@ INSERT INTO comments (`date`, `comment`, `rating`, `username`, `clubName`) VALUE
 ('2025-08-31 00:30:00','Retro night brought back many memories.',4,'Quentin','Gaming'),
 ('2024-11-30 02:00:00','Bring an extra power strip next time.',2,'Giorgia','Gaming'),
 ('2025-04-27 02:00:00','I found a group to play my favourite eurogame with — excellent!',5,'Alex','Gaming'),
-('2025-06-08 03:00:00','RPG tables were well-run, GMs were prepared.',5,'Bella','Gaming');
+('2025-06-08 03:00:00','RPG tables were well-run, GMs were prepared.',5,'Bella','Gaming'),
+('2025-03-16 20:00:00','Loved the feedback on my PM speech structure.',5,'Nicolas','Debate'),
+('2025-04-03 12:00:00','Public speaking drills really reduced my filler words.',4,'Priya','Debate'),
+('2025-05-11 09:30:00','Please add more cross-ex practice next time.',3,'Julia','Debate'),
+('2025-05-12 21:00:00','Improv games loosened us up before scene work.',5,'Amelia','Drama'),
+('2025-06-19 12:00:00','Improv night was hilarious; thanks for the tips!',4,'Simon','Drama'),
+('2025-05-06 10:00:00','Solar 101 talk gave me actionable steps for my flat.',5,'Greta','Environmental'),
+('2025-04-21 13:00:00','Cleanup was smooth; more water stations would help.',3,'Kenji','Environmental'),
+('2025-03-13 21:30:00','Pair programming was fun; learned Express routing.',5,'Ethan','Coding'),
+('2025-04-09 20:00:00','Interview sprint: great mock rounds and resume edits.',5,'Rina','Coding'),
+('2025-03-23 22:00:00','Salsa social had a friendly vibe; music could be louder.',4,'Layla','Dance'),
+('2025-04-15 21:30:00','Hip-hop choreo was challenging but rewarding.',5,'Diego','Dance');
+
+-- ==== NOTIFICATIONS =====
+INSERT INTO notifications (`username`, `clubName`, `type`, `message`, `link`, `isRead`, `createdAt`) VALUES
+('Marta', 'Ski', 'membership', 'You have been promoted to VP in Ski', '/ClubPage/Ski', 1, '2025-03-07 09:00:00'),
+('Ayoub', 'Basketball', 'membership', 'Your 3v3 tournament recap is ready', '/ClubPage/Basketball', 0, '2025-06-17 11:00:00'),
+('Sofia', 'Cooking', 'event', 'New pasta workshop added this week', '/ClubPage/Cooking', 0, '2025-05-18 09:30:00'),
+('Bella', 'Gaming', 'event', 'LAN party schedule has changed', '/ClubPage/Gaming', 0, '2024-11-27 12:00:00');
 
 -- ===== Update clubs.memberCount to match actual inserted people (counts based on above inserts) =====
 UPDATE clubs SET memberCount = (
   SELECT COUNT(*) FROM person WHERE person.club = clubs.clubName AND person.role IN ('CL','VP','CM')
-) WHERE clubName IN ('Ski','Basketball','Baseball','Chess','Music','Drama','Photography','Robotics');
+);

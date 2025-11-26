@@ -1,8 +1,8 @@
 // Page for user login
-
 import { React, useState } from "react"
-import axios from "axios"
 import { useNavigate } from "react-router-dom"
+import api from "../api"
+import { saveSession, clearSession } from "../utils/auth"
 
 const LogIn = () => {
     // State for user credentials
@@ -10,6 +10,7 @@ const LogIn = () => {
         username: "",
         password: "",
     })
+    const [error, setError] = useState("")
 
     // Navigation hook to redirect to home page after login
     const navigate = useNavigate()
@@ -22,20 +23,24 @@ const LogIn = () => {
     // Handle form submission to login the user
     const handleClick = async (e) => {
         e.preventDefault() // Prevent default form submission behavior
+        setError("")
         try {
-            // Send POST request to backend to get user role and club
-            const res = await axios.post("http://localhost:3000/login", credential)
-            if (res.data.length > 0) {
-                // If valid credentials, navigate to home with role and club
-                const user = res.data[0]
-                navigate("../?username=" + credential.username + "&role=" + user.role + "&club=" + user.club)
-            }else {
-                // If invalid credentials, show alert
-                alert("Invalid credentials")
-            }
+            const res = await api.post("/login", credential)
+            clearSession()
+            saveSession({
+                username: res.data.username,
+                role: res.data.role,
+                club: res.data.club,
+                sessionId: res.data.sessionId
+            })
+            navigate("../")
         } catch (err) {
-            // Log any errors
+            if (err.response?.status === 401) {
+                setError("Invalid credentials. Try password: password123")
+                return
+            }
             console.error(err)
+            setError("Unable to login right now")
         }
     }
 
@@ -43,6 +48,7 @@ const LogIn = () => {
     return (
         <div className="logIn">
             <h1>Login Page</h1>
+            {error && <div className="alert error" style={{ maxWidth: 340, margin: "0 auto 1rem" }}>{error}</div>}
             <form>
                 <input type="text" placeholder="username" onChange={handleChange} name="username" required/><br/>
                 <input type="password" placeholder="password" onChange={handleChange} name="password" required/><br/>

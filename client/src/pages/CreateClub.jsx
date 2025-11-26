@@ -1,10 +1,12 @@
 // Page for creating a new club
-
 import { React, useState } from "react"
-import axios from "axios"
 import { Link, useNavigate } from "react-router-dom"
+import api from "../api"
+import { getSession } from "../utils/auth"
 
 const CreateClub = () => {
+    const session = getSession()
+
     // State for club details
     const [clubs, setClubs] = useState({
         clubName: "",
@@ -24,8 +26,20 @@ const CreateClub = () => {
     const handleClick = async (e) => {
         e.preventDefault() // Prevent default form submission behavior
         try {
+            if (!session) {
+                alert("Login as CL/VP to create a club.")
+                return
+            }
+            if (!['CL', 'VP'].includes(session.role)) {
+                alert("Only CL/VP roles can create clubs.")
+                return
+            }
+            if (session.club) {
+                alert("Leave your current club before creating a new one.")
+                return
+            }
             // Send POST request to backend to create club
-            const res = await axios.post("http://localhost:3000/createClub", clubs)
+            const res = await api.post("/createClub", clubs)
 
             // If creation is successful, navigate back to home
             if (res.status === 201) navigate("../")
@@ -35,6 +49,7 @@ const CreateClub = () => {
                 alert("Club already exists!")
             } else {
                 console.error(err)
+                alert(err.response?.data?.message || "Unable to create club")
             }
         }
     }

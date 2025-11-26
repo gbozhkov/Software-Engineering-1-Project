@@ -1,15 +1,18 @@
 // Page for creating a new club
 
 import { React, useState } from "react"
-import axios from "axios"
 import { Link, useNavigate, useLocation } from "react-router-dom"
+import api from "../api"
+import { getSession } from "../utils/auth"
 
 const CreateEvent = () => {
     // Get club name from URL
     const location = useLocation()
     const clubName = location.pathname.split("/")[2]
 
-    // State for club details
+    const session = getSession()
+
+    // State for event details
     const [event, setEvent] = useState({
         title: "",
         description: "",
@@ -30,12 +33,16 @@ const CreateEvent = () => {
     const handleClick = async (e) => {
         e.preventDefault() // Prevent default form submission behavior
         try {
-            // Send POST request to backend to create club
-            await axios.post("http://localhost:3000/createEvent", event)
+            if (!session || session.club !== clubName || !['CL', 'VP'].includes(session.role)) {
+                alert("Only club admins can create events.")
+                return
+            }
+            await api.post("/createEvent", event)
             navigate("../../ClubPage/" + clubName) // Navigate back to club page
         } catch (err) {
             // Log any errors
             console.error(err)
+            alert(err.response?.data?.message || "Unable to create event")
         }
     }
 
@@ -44,14 +51,18 @@ const CreateEvent = () => {
     // Render the create club form
     return (
         <div className="CreateClub">
-            <h1>Comment under {clubName}</h1>
-            <form>
-                <input type="text" placeholder="title" onChange={handleChange} name="title" required/><br/>
-                <textarea type="text" placeholder="description" onChange={handleChange} name="description" required/><br/>
-                <input type="datetime-local" onChange={handleChange} name="startDate" required/><br/>
-                <input type="datetime-local" onChange={handleChange} name="endDate" required/><br/>
-                <button type="submit" onClick={handleClick}>Create</button>
-            </form>
+            <h1>Create event for {clubName}</h1>
+            {session?.club === clubName && ['CL', 'VP'].includes(session.role) ? (
+                <form>
+                    <input type="text" placeholder="title" onChange={handleChange} name="title" required/><br/>
+                    <textarea type="text" placeholder="description" onChange={handleChange} name="description" required/><br/>
+                    <input type="datetime-local" onChange={handleChange} name="startDate" required/><br/>
+                    <input type="datetime-local" onChange={handleChange} name="endDate" /><br/>
+                    <button type="submit" onClick={handleClick}>Create</button>
+                </form>
+            ) : (
+                <p style={{ opacity: 0.7 }}>Only club admins can create events.</p>
+            )}
             <button><Link to={"../../ClubPage/" + clubName}>Back</Link></button>
         </div>
     )

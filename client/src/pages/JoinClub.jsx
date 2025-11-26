@@ -1,8 +1,7 @@
 // Page to join a specific club
-
-import { React, useEffect, useState } from "react"
-import axios from "axios"
+import { React, useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
+import api from "../api"
 
 const JoinClub = () => {
     // State for user credentials
@@ -28,11 +27,12 @@ const JoinClub = () => {
         e.preventDefault() // Prevent default form submission behavior
         try {
             // Send PUT request to backend to join club
-            await axios.put("http://localhost:3000/joinClubs/" + clubName, person)
+            await api.put("/joinClubs/" + clubName, person)
             navigate("../") // Navigate back to home
         } catch (err) {
             // Log any errors
             console.error(err)
+            alert(err.response?.data?.message || "Unable to join club")
         }
     }
 
