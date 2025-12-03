@@ -690,13 +690,35 @@ form button {
 .club-sidebar .members-card table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 .club-sidebar .members-card th,
 .club-sidebar .members-card td {
-  padding: 0.55rem 1rem;
+  padding: 0.55rem 0.5rem;
   border-bottom: 1px solid rgba(226, 232, 240, 0.9);
   text-align: left;
   color: var(--text-strong);
+}
+.club-sidebar .members-card td:nth-child(1) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.club-sidebar .members-card td:nth-child(2) {
+  width: 50px;
+  overflow: visible;
+  white-space: nowrap;
+}
+.club-sidebar .members-card th:nth-child(2) {
+  width: 50px;
+}
+.club-sidebar .members-card th:nth-child(3) {
+  width: 94px;
+}
+.club-sidebar .members-card td:last-child {
+  width: 80px;
+  overflow: visible;
+  white-space: nowrap;
 }
 .club-sidebar .members-card thead th {
   font-size: 0.9rem;
