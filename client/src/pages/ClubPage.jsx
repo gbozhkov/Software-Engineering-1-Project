@@ -501,7 +501,7 @@ const ClubPage = () => {
                                 <thead>
                                     <tr>
                                         <th>Name</th>
-                                        <th></th>
+                                        <th style={{ width: "94px" }}></th>
                                     </tr>
                                 </thead>
                                 <tbody>
