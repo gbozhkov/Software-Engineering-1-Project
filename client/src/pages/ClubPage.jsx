@@ -348,7 +348,7 @@ const ClubPage = () => {
                 </div>
             )}
             <div className="events">
-                <h3 style={{margin: "0 0 0.5rem 0"}}>Events:</h3>
+                <h3 style={{margin: "0 0 0.5rem 0", fontSize: "1.35rem", color: "black"}}>Events:</h3>
                 {/* Top bar */}
                 <div className="top-bar">
                     <input
@@ -527,7 +527,7 @@ const ClubPage = () => {
                     )}
                 </div>
                 </div>
-                <h3 style={{marginTop: "0.6rem"}}>Comments:</h3>
+                <h3 style={{marginTop: "0.6rem"}}>Write a comment:</h3>
                 
                 {/* Inline comment form */}
                 {session && (
@@ -562,6 +562,7 @@ const ClubPage = () => {
                     </form>
                 )}
 
+                <h3 style={{marginTop: "0.6rem"}}>Comments:</h3>
                 <div className="section-header">
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", width: "100%" }}>
                         <input
