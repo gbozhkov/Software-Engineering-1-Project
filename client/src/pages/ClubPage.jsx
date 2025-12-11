@@ -7,6 +7,47 @@ import DOMPurify from 'dompurify'
 import api from "../api"
 import { getSession } from "../utils/auth"
 
+const formatDateRange = (start, end) => {
+    const s = new Date(start)
+    const e = end ? new Date(end) : null
+    const sameDay = e && s.toDateString() === e.toDateString()
+    const fmt = (d) => `${d.toLocaleDateString('en-GB')} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+    if (!e) return fmt(s)
+    if (sameDay) return `${fmt(s)} - ${e.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+    return `${fmt(s)} - ${fmt(e)}`
+}
+
+const downloadICS = (event) => {
+    const toICS = (date) => new Date(date).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+    const start = toICS(event.startDate)
+    const end = toICS(event.endDate || event.startDate)
+    const uid = `${event.eventid || event.title}-${start}@school-club`
+    const ics = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//School Club Activity//EN',
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTAMP:${toICS(new Date())}`,
+        `DTSTART:${start}`,
+        `DTEND:${end}`,
+        `SUMMARY:${event.title}`,
+        `DESCRIPTION:${(event.description || '').replace(/\n/g, '\\n')}`,
+        `LOCATION:${event.clubName || 'Club Event'}`,
+        'END:VEVENT',
+        'END:VCALENDAR'
+    ].join('\r\n')
+    const blob = new Blob([ics], { type: 'text/calendar' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${event.title || 'event'}.ics`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
 const ClubPage = () => {
     const location = useLocation()
     const clubName = location.pathname.split("/")[2]
@@ -268,20 +309,28 @@ const ClubPage = () => {
                         <p style={{ textAlign: "center", opacity: 0.6 }}>No events yet</p>
                     </div>
                 ) : events.map((event) => (
-                    <div className="event" key={event.eventid}>
+                    <div className="event elevated" key={event.eventid}>
                         <div className="event-header">
-                            <h2>{event.title}</h2>
-                            <span className="event-date">
-                                {((s,e)=>!e
-                                    ? `${s.toLocaleDateString('en-GB')} ${s.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})}`
-                                    : s.toDateString() === e.toDateString()
-                                        ? `${s.toLocaleDateString('en-GB')} ${s.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})} - ${e.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})}`
-                                        : `${s.toLocaleDateString('en-GB')} ${s.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})} - ${e.toLocaleDateString('en-GB')} ${e.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})}`
-                                    )(new Date(event.startDate), event.endDate ? new Date(event.endDate) : null
-                        )}
-                            </span>
+                            <div>
+                                <div className="event-meta">
+                                    <span className={`pill soft ${event.accepted ? 'success' : 'warning'}`}>
+                                        {event.accepted ? 'Accepted' : 'Pending approval'}
+                                    </span>
+                                    <span className="event-date">{formatDateRange(event.startDate, event.endDate)}</span>
+                                </div>
+                                <h2>{event.title}</h2>
+                            </div>
+                            {event.accepted && (
+                                <button className="btn-ghost btn-sm" type="button" onClick={() => downloadICS(event)}>
+                                    Add to calendar
+                                </button>
+                            )}
                         </div>
                         <p className="event-description">{event.description}</p>
+                        <div className="event-footer">
+                            <div className="event-tag">Starts {new Date(event.startDate).toLocaleDateString('en-GB')}</div>
+                            {event.endDate && <div className="event-tag neutral">Ends {new Date(event.endDate).toLocaleDateString('en-GB')}</div>}
+                        </div>
                         <div className="actions">
                             {!event.accepted && isLeader && (<button onClick={() => eventActionMutation.mutate({ url: "/event/" + event.eventid, method: "put" })}>Accept Event</button>)}
                             {isAdmin && (<button className="deletebtn" onClick={() => eventActionMutation.mutate({ url: "/event/" + event.eventid, method: "delete" })}>Delete Event</button>)}

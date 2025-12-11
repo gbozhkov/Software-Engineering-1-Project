@@ -70,7 +70,10 @@ const Notifications = () => {
 
   const markReadMutation = useMutation({
     mutationFn: ({ id, read }) => api.put(`/notifications/${id}/${read ? 'read' : 'unread'}`),
-    onSuccess: () => queryClient.invalidateQueries(['notifications'])
+    onSuccess: () => {
+      queryClient.invalidateQueries(['notifications'])
+      window.dispatchEvent(new Event('sca:unread-change'))
+    }
   })
 
   const updateFilter = (field, value) => {

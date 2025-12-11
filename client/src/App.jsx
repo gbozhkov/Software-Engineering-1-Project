@@ -64,12 +64,15 @@ function App() {
     const interval = setInterval(sync, 30000)
     const onStorage = () => sync()
     const onSessionChange = () => sync()
+    const onUnreadChange = () => sync()
     window.addEventListener('storage', onStorage)
     window.addEventListener('sca:session-change', onSessionChange)
+    window.addEventListener('sca:unread-change', onUnreadChange)
     return () => {
       clearInterval(interval)
       window.removeEventListener('storage', onStorage)
       window.removeEventListener('sca:session-change', onSessionChange)
+      window.removeEventListener('sca:unread-change', onUnreadChange)
     }
   }, [])
 
