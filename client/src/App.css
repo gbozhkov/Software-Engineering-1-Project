@@ -376,7 +376,10 @@ label {
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
   flex: 1;
+  min-height: 2.6em; /* Ensures consistent height for 2 lines */
 }
 
 /* Progress Bar */
