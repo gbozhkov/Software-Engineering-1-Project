@@ -284,7 +284,7 @@ const Notifications = () => {
         ) : items.map(n => (
           <div key={n.notificationid} className={`notification-card ${n.isRead ? 'read' : 'unread'}`}>
             <div className="notification-head">
-              <span className="badge">{n.type}</span>
+              <span className="badge" style={{ backgroundColor: n.isRead ? undefined : 'red', color: n.isRead ? undefined : 'white' }}>{n.type}</span>
               <span className="notification-date">{new Date(n.createdAt).toLocaleString('en-GB')}</span>
             </div>
             {n.senderUsername && (
