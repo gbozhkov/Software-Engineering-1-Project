@@ -310,6 +310,31 @@ app.get('/events', requireAuth, async (req, res) => {
   }
 })
 
+// Public signup (creates a STU account and logs in)
+app.post('/signup', async (req, res) => {
+  const { username, password } = req.body || {}
+  if (!username || !password) return res.status(400).json({ message: 'Username and password are required' })
+  if (String(username).length < 3) return res.status(400).json({ message: 'Username must be at least 3 characters' })
+  if (String(password).length < 6) return res.status(400).json({ message: 'Password must be at least 6 characters' })
+
+  try {
+    const [exists] = await dbp.query('SELECT 1 FROM person WHERE username = ?', [username])
+    if (exists.length > 0) return res.status(400).json({ message: 'Username already exists' })
+
+    const hash = await bcrypt.hash(password, 10)
+    await dbp.query('INSERT INTO person (username, password, role, club) VALUES (?, ?, ?, NULL)', [username, hash, 'STU'])
+
+    // Create session immediately so the user is logged in after signup
+    const sessionId = crypto.randomUUID()
+    await dbp.query('UPDATE person SET sessionId = ? WHERE username = ?', [sessionId, username])
+
+    return res.status(201).json({ username, role: 'STU', club: null, sessionId })
+  } catch (err) {
+    console.error('Signup failed', err)
+    return res.status(500).json({ message: 'Failed to create account' })
+  }
+})
+
 // User login (creates a session)
 app.post('/login', async (req, res) => {
   const { username, password } = req.body

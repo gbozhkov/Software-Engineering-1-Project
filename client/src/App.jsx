@@ -10,6 +10,7 @@ import Comment from './pages/Comment.jsx';
 import CreateEvent from './pages/CreateEvent.jsx';
 import UpdateClub from './pages/UpdateClub.jsx';
 import Notifications from './pages/Notifications.jsx';
+import SignUp from './pages/SignUp.jsx';
 import api from './api';
 import { clearSession, getSession } from './utils/auth';
 
@@ -101,11 +102,11 @@ function App() {
 
 function AppContent({ session, unread, handleLogout }) {
   const location = useLocation()
-  const isLoginPage = location.pathname === '/LogIn'
+  const isAuthPage = ['/LogIn','/SignUp'].includes(location.pathname)
 
   return (
     <>
-      {!isLoginPage && (
+      {!isAuthPage && (
         <header className="top-nav">
           <div className="brand">School Club Activity</div>
           <nav>
@@ -129,13 +130,17 @@ function AppContent({ session, unread, handleLogout }) {
                 <button className="ghost" onClick={handleLogout}>Logout</button>
               </>
             ) : (
-              <Link className="ghost" to="/LogIn">Login</Link>
+              <>
+                <Link className="ghost" to="/LogIn">Login</Link>
+                <Link className="ghost" to="/SignUp">Sign up</Link>
+              </>
             )}
           </div>
         </header>
       )}
       <Routes>
         <Route path="/LogIn" element={<LogIn/>} />
+        <Route path="/SignUp" element={<SignUp/>} />
           <Route path="/" element={<ProtectedRoute><Home/></ProtectedRoute>} />
           <Route path="/CreateClub" element={<ProtectedRoute><CreateClub/></ProtectedRoute>} />
           <Route path="/ClubPage/:clubName" element={<ProtectedRoute><ClubPage/></ProtectedRoute>} />

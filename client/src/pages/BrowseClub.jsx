@@ -137,7 +137,7 @@ export default function BrowseClubs() {
                 <p dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(club.description) }}></p>
                 <p>Members: {club.memberCount} / {club.memberMax}</p>
                 <ProgressBar percentage={(club.memberCount / club.memberMax) * 100} />
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <div className="club-actions">
                   <Link className="btn" to={`/ClubPage/${club.clubName}`}>View Club</Link>
                   {!isMyClub && !alreadyInClub && club.memberCount < club.memberMax && (
                     <button className="btn" onClick={async () => {
