@@ -778,8 +778,11 @@ app.post('/notifications', requireAuth, requireRoles('CL', 'VP'), async (req, re
 })
 
 app.post('/sendEmail', requireAuth, async (req, res) => {
-  const { recipient, message, sendToAllClub } = req.body
+  const { recipient, message, sendToAllClub, type } = req.body
   if (!message) return res.status(400).json({ message: 'Message required' })
+  
+  // Validate notification type
+  const notificationType = type && ['event', 'membership', 'email'].includes(type) ? type : 'email'
   
   try {
     // Check if user is CL/VP for sending to all club members
@@ -787,10 +790,10 @@ app.post('/sendEmail', requireAuth, async (req, res) => {
       if (!['CL', 'VP'].includes(req.user.role) || !req.user.club) {
         return res.status(403).json({ message: 'Only Club Leaders and Vice Presidents can send to all members' })
       }
-      // Get all club members
+      // Get all club members except the sender
       const [members] = await dbp.query(
-        "SELECT username FROM person WHERE club = ? AND role IN ('CL', 'VP', 'CM')",
-        [req.user.club]
+        "SELECT username FROM person WHERE club = ? AND role IN ('CL', 'VP', 'CM') AND username != ?",
+        [req.user.club, req.user.username]
       )
       // Send to all members
       for (const member of members) {
@@ -798,7 +801,7 @@ app.post('/sendEmail', requireAuth, async (req, res) => {
           username: member.username,
           senderUsername: req.user.username,
           clubName: req.user.club,
-          type: 'email',
+          type: notificationType,
           message: message,
           link: null
         })

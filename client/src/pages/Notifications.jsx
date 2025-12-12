@@ -16,7 +16,7 @@ const Notifications = () => {
   const [filterOpen, setFilterOpen] = useState(false)
   
   const [emailFormOpen, setEmailFormOpen] = useState(false)
-  const [emailForm, setEmailForm] = useState({ recipient: "", message: "", sendToAllClub: false })
+  const [emailForm, setEmailForm] = useState({ recipient: "", message: "", sendToAllClub: false, type: "email" })
   const [recipientSearch, setRecipientSearch] = useState("")
   const [showSuggestions, setShowSuggestions] = useState(false)
 
@@ -60,7 +60,7 @@ const Notifications = () => {
     mutationFn: (data) => api.post("/sendEmail", data),
     onSuccess: () => {
         alert(emailForm.sendToAllClub ? "Email sent to all club members!" : "Email sent successfully!")
-        setEmailForm({ recipient: "", message: "", sendToAllClub: false })
+        setEmailForm({ recipient: "", message: "", sendToAllClub: false, type: "email" })
         setRecipientSearch("")
         setEmailFormOpen(false)
         queryClient.invalidateQueries(['notifications'])
@@ -131,6 +131,20 @@ const Notifications = () => {
                   />
                   Send to all club members
                 </label>
+              </div>
+            )}
+            
+            {isAdmin && emailForm.sendToAllClub && (
+              <div>
+                <label>Notification Type:</label>
+                <select
+                  value={emailForm.type}
+                  onChange={(e) => setEmailForm({ ...emailForm, type: e.target.value })}
+                >
+                  <option value="email">Email</option>
+                  <option value="event">Event</option>
+                  <option value="membership">Membership</option>
+                </select>
               </div>
             )}
             
