@@ -125,6 +125,7 @@ app.use(apiLimiter)
 
 // Get all clubs with optional search/order/pagination (requires login)
 app.get('/clubs', requireAuth, async (req, res) => {
+  console.log(`GET /clubs - User: ${req.user?.username}`)
   try {
     const { search, orderKey, direction, limit, page, offset } = buildPagination(
       req.query,
@@ -164,6 +165,7 @@ app.get('/clubs', requireAuth, async (req, res) => {
 // Get specific club by clubName (requires login)
 app.get('/clubs/:clubName', requireAuth, async (req, res) => {
   const clubName = req.params.clubName
+  console.log(`GET /clubs/${clubName} - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT * FROM clubs WHERE clubName = ?', [clubName])
     return res.json(rows)
@@ -176,6 +178,7 @@ app.get('/clubs/:clubName', requireAuth, async (req, res) => {
 // Get specific events by clubName with optional search/order/pagination (requires login)
 app.get('/events/:clubName', requireAuth, async (req, res) => {
   const clubName = req.params.clubName
+  console.log(`GET /events/${clubName} - User: ${req.user?.username}`)
   const { search, orderKey, direction, limit, page, offset } = buildPagination(
     req.query,
     { startDate: 'startDate', endDate: 'endDate', title: 'title', accepted: 'accepted' },
@@ -218,6 +221,7 @@ app.get('/person/:clubName', requireAuth, (req, res) => {
     // Cerate the SELECT query
     const q = "SELECT username, role FROM person WHERE club = ? ORDER BY FIELD(role, 'CL', 'VP', 'CM', 'STU'), username ASC"
     const clubName = req.params.clubName
+    console.log(`GET /person/${clubName} - User: ${req.user?.username}`)
 
     // Execute the query
     db.query(q, clubName, (err, data) => {
@@ -229,6 +233,7 @@ app.get('/person/:clubName', requireAuth, (req, res) => {
 // Get specific comments by clubName with optional search/order/pagination (requires login)
 app.get('/comments/:clubName', requireAuth, async (req, res) => {
   const clubName = req.params.clubName
+  console.log(`GET /comments/${clubName} - User: ${req.user?.username}`)
   const { search, orderKey, direction, limit, page, offset } = buildPagination(
     req.query,
     { date: 'date', rating: 'rating', username: 'username' },
@@ -264,6 +269,7 @@ app.get('/comments/:clubName', requireAuth, async (req, res) => {
 
 // Get upcoming events with optional search/order/pagination (requires login)
 app.get('/events', requireAuth, async (req, res) => {
+  console.log(`GET /events - User: ${req.user?.username}`)
   const { search, orderKey, direction, limit, page, offset } = buildPagination(
     req.query,
     { startDate: 'startDate', endDate: 'endDate', title: 'title', clubName: 'clubName' },
@@ -313,6 +319,7 @@ app.get('/events', requireAuth, async (req, res) => {
 // Public signup (creates a STU account and logs in)
 app.post('/signup', async (req, res) => {
   const { username, password } = req.body || {}
+  console.log(`POST /signup - Username: ${username}`)
   if (!username || !password) return res.status(400).json({ message: 'Username and password are required' })
   if (String(username).length < 3) return res.status(400).json({ message: 'Username must be at least 3 characters' })
   if (String(password).length < 6) return res.status(400).json({ message: 'Password must be at least 6 characters' })
@@ -338,6 +345,7 @@ app.post('/signup', async (req, res) => {
 // User login (creates a session)
 app.post('/login', async (req, res) => {
   const { username, password } = req.body
+  console.log(`POST /login - Username: ${username}`)
   if (!username || !password) return res.status(400).json({ message: 'Username and password required' })
 
   try {
@@ -372,6 +380,7 @@ app.post('/login', async (req, res) => {
 })
 
 app.post('/logout', requireAuth, async (req, res) => {
+  console.log(`POST /logout - User: ${req.user?.username}`)
   try {
     await dbp.query('UPDATE person SET sessionId = NULL WHERE username = ?', [req.user.username])
     return res.json({ message: 'Logged out' })
@@ -383,6 +392,7 @@ app.post('/logout', requireAuth, async (req, res) => {
 
 // Get current session information
 app.get('/session', requireAuth, async (req, res) => {
+  console.log(`GET /session - User: ${req.user?.username}`)
   return res.json({
     username: req.user.username,
     role: req.user.role,
@@ -393,6 +403,7 @@ app.get('/session', requireAuth, async (req, res) => {
 // Create a new club
 app.post('/createClub', requireAuth, requireRoles('STU'), async (req, res) => {
   const { clubName, description, memberMax, bannerImage, bannerColor } = req.body
+  console.log(`POST /createClub - User: ${req.user?.username}, Club: ${clubName}`)
   if (!clubName || !description || !memberMax) return res.status(400).json({ message: 'Missing club fields' })
   if (req.user.club) return res.status(400).json({ message: 'You must not be enrolled in any club to create a new one' })
   const maxMembers = Number(memberMax)
@@ -418,6 +429,7 @@ app.post('/createClub', requireAuth, requireRoles('STU'), async (req, res) => {
 // Create a new comment (anyone logged in can comment)
 app.post('/comment', requireAuth, async (req, res) => {
   const { comment, rating, clubName } = req.body
+  console.log(`POST /comment - User: ${req.user?.username}, Club: ${clubName}`)
   if (!comment || !clubName) return res.status(400).json({ message: 'Comment and clubName are required' })
 
   try {
@@ -435,6 +447,7 @@ app.post('/comment', requireAuth, async (req, res) => {
 // Create a new event
 app.post('/createEvent', requireAuth, requireRoles('CL', 'VP'), requireClubMatch(req => req.body.clubName), async (req, res) => {
   const { title, description, startDate, endDate, clubName } = req.body
+  console.log(`POST /createEvent - User: ${req.user?.username}, Event: ${title}, Club: ${clubName}`)
   if (!title || !description || !startDate || !clubName) return res.status(400).json({ message: 'Missing event fields' })
 
   try {
@@ -473,6 +486,7 @@ app.post('/createEvent', requireAuth, requireRoles('CL', 'VP'), requireClubMatch
 // Delete a club by clubName and reset members
 app.delete('/clubs/:clubName', requireAuth, requireRoles('CL'), requireClubMatch(req => req.params.clubName), async (req, res) => {
   const clubName = req.params.clubName
+  console.log(`DELETE /clubs/${clubName} - User: ${req.user?.username}`)
   try {
     await dbp.query("UPDATE person SET role = 'STU', club = NULL WHERE club = ?", [clubName])
     await dbp.query("DELETE FROM clubs WHERE clubName = ?", [clubName])
@@ -486,6 +500,7 @@ app.delete('/clubs/:clubName', requireAuth, requireRoles('CL'), requireClubMatch
 // Delete a comment by commentId
 app.delete('/comment/:commentid', requireAuth, async (req, res) => {
   const commentId = req.params.commentid
+  console.log(`DELETE /comment/${commentId} - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT username, clubName FROM comments WHERE commentid = ?', [commentId])
     if (rows.length === 0) return res.status(404).json({ message: 'Comment not found' })
@@ -507,6 +522,7 @@ app.delete('/comment/:commentid', requireAuth, async (req, res) => {
 // Delete a event by eventId
 app.delete('/event/:eventid', requireAuth, requireRoles('CL', 'VP'), async (req, res) => {
   const eventId = req.params.eventid
+  console.log(`DELETE /event/${eventId} - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT clubName FROM events WHERE eventid = ?', [eventId])
     if (rows.length === 0) return res.status(404).json({ message: 'Event not found' })
@@ -523,6 +539,7 @@ app.delete('/event/:eventid', requireAuth, requireRoles('CL', 'VP'), async (req,
 // Accept a event by eventId (CL only per user story)
 app.put('/event/:eventid', requireAuth, requireRoles('CL'), async (req, res) => {
   const eventId = req.params.eventid
+  console.log(`PUT /event/${eventId} - User: ${req.user?.username} - Accepting event`)
   try {
     const [rows] = await dbp.query('SELECT clubName, title FROM events WHERE eventid = ?', [eventId])
     if (rows.length === 0) return res.status(404).json({ message: 'Event not found' })
@@ -559,6 +576,7 @@ app.put('/event/:eventid', requireAuth, requireRoles('CL'), async (req, res) => 
 app.post('/updateClub/:clubName', requireAuth, requireRoles('CL'), requireClubMatch(req => req.params.clubName), async (req, res) => {
   const clubName = req.params.clubName
   const { description, memberMax, bannerImage, bannerColor } = req.body
+  console.log(`POST /updateClub/${clubName} - User: ${req.user?.username}`)
   if (!memberMax) return res.status(400).json({ message: 'Missing fields' })
   const maxMembers = Number(memberMax)
   if (Number.isNaN(maxMembers) || maxMembers < 1) return res.status(400).json({ message: 'memberMax must be positive' })
@@ -581,6 +599,7 @@ app.post('/updateClub/:clubName', requireAuth, requireRoles('CL'), requireClubMa
 
 app.put('/joinClubs/:clubName', requireAuth, async (req, res) => {
   const clubName = req.params.clubName
+  console.log(`PUT /joinClubs/${clubName} - User: ${req.user?.username}`)
 
   try {
     if (req.user.club) return res.status(400).json({ message: 'Already in a club or pending' })
@@ -601,6 +620,7 @@ app.put('/joinClubs/:clubName', requireAuth, async (req, res) => {
 
 app.put('/expell/:username', requireAuth, requireRoles('CL', 'VP'), async (req, res) => {
   const username = req.params.username
+  console.log(`PUT /expell/${username} - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT club FROM person WHERE username = ?', [username])
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' })
@@ -618,6 +638,7 @@ app.put('/expell/:username', requireAuth, requireRoles('CL', 'VP'), async (req, 
 
 app.put('/accept/:username', requireAuth, requireRoles('CL', 'VP'), async (req, res) => {
   const username = req.params.username
+  console.log(`PUT /accept/${username} - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT club FROM person WHERE username = ?', [username])
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' })
@@ -638,6 +659,7 @@ app.put('/accept/:username', requireAuth, requireRoles('CL', 'VP'), async (req, 
 
 app.put('/reject/:username', requireAuth, requireRoles('CL', 'VP'), async (req, res) => {
   const username = req.params.username
+  console.log(`PUT /reject/${username} - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT club FROM person WHERE username = ?', [username])
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' })
@@ -655,6 +677,7 @@ app.put('/reject/:username', requireAuth, requireRoles('CL', 'VP'), async (req, 
 
 // Cancel own pending join request
 app.delete('/cancelJoinRequest', requireAuth, async (req, res) => {
+  console.log(`DELETE /cancelJoinRequest - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT club, role FROM person WHERE username = ?', [req.user.username])
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' })
@@ -673,6 +696,7 @@ app.delete('/cancelJoinRequest', requireAuth, async (req, res) => {
 
 // Quit club (for CM and VP members)
 app.delete('/quitClub', requireAuth, async (req, res) => {
+  console.log(`DELETE /quitClub - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT club, role FROM person WHERE username = ?', [req.user.username])
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' })
@@ -700,6 +724,7 @@ app.delete('/quitClub', requireAuth, async (req, res) => {
 app.put('/promote/:username', requireAuth, requireRoles('CL'), async (req, res) => {
   const username = req.params.username
   const { action } = req.body // 'promote' or 'demote'
+  console.log(`PUT /promote/${username} - User: ${req.user?.username}, Action: ${action}`)
   try {
     const [rows] = await dbp.query('SELECT club, role FROM person WHERE username = ?', [username])
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' })
@@ -726,6 +751,7 @@ app.put('/promote/:username', requireAuth, requireRoles('CL'), async (req, res) 
 
 // Notifications
 app.get('/notifications', requireAuth, async (req, res) => {
+  console.log(`GET /notifications - User: ${req.user?.username}, Mailbox: ${req.query.mailbox || 'inbox'}`)
   const { search, orderKey, direction, limit, page, offset } = buildPagination(
     req.query,
     { created: 'createdAt', type: 'type', read: 'isRead' },
@@ -827,6 +853,7 @@ app.get('/notifications', requireAuth, async (req, res) => {
 })
 
 app.get('/notifications/unreadCount', requireAuth, async (req, res) => {
+  console.log(`GET /notifications/unreadCount - User: ${req.user?.username}`)
   try {
     const [[{ total }]] = await dbp.query(
       'SELECT COUNT(*) AS total FROM notifications WHERE username = ? AND isRead = 0',
@@ -841,6 +868,7 @@ app.get('/notifications/unreadCount', requireAuth, async (req, res) => {
 
 app.post('/notifications', requireAuth, requireRoles('CL', 'VP'), async (req, res) => {
   const { username, clubName, type, message, link } = req.body
+  console.log(`POST /notifications - User: ${req.user?.username}, To: ${username}`)
   if (!username || !message) return res.status(400).json({ message: 'Username and message required' })
   if (clubName && req.user.club && req.user.club !== clubName) return forbidden(res)
   try {
@@ -854,6 +882,7 @@ app.post('/notifications', requireAuth, requireRoles('CL', 'VP'), async (req, re
 
 app.post('/sendEmail', requireAuth, async (req, res) => {
   const { recipient, message, sendToAllClub, type, link } = req.body
+  console.log(`POST /sendEmail - User: ${req.user?.username}, To: ${sendToAllClub ? 'All club' : recipient}`)
   if (!message) return res.status(400).json({ message: 'Message required' })
   
   // Validate notification type
@@ -906,6 +935,7 @@ app.post('/sendEmail', requireAuth, async (req, res) => {
 })
 
 app.get('/clubMembers', requireAuth, requireRoles('CL', 'VP', 'CM'), async (req, res) => {
+  console.log(`GET /clubMembers - User: ${req.user?.username}`)
   try {
     if (!req.user.club) return res.status(400).json({ message: 'You are not part of a club' })
     const [members] = await dbp.query(
@@ -920,6 +950,7 @@ app.get('/clubMembers', requireAuth, requireRoles('CL', 'VP', 'CM'), async (req,
 })
 
 app.get('/allUsers', requireAuth, async (req, res) => {
+  console.log(`GET /allUsers - User: ${req.user?.username}, Search: ${req.query.q || ''}`)
   try {
     const search = req.query.q || ''
     const like = `%${search}%`
@@ -936,6 +967,7 @@ app.get('/allUsers', requireAuth, async (req, res) => {
 
 app.put('/notifications/:id/read', requireAuth, async (req, res) => {
   const id = req.params.id
+  console.log(`PUT /notifications/${id}/read - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT username FROM notifications WHERE notificationid = ?', [id])
     if (rows.length === 0) return res.status(404).json({ message: 'Notification not found' })
@@ -950,6 +982,7 @@ app.put('/notifications/:id/read', requireAuth, async (req, res) => {
 
 app.put('/notifications/:id/unread', requireAuth, async (req, res) => {
   const id = req.params.id
+  console.log(`PUT /notifications/${id}/unread - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT username FROM notifications WHERE notificationid = ?', [id])
     if (rows.length === 0) return res.status(404).json({ message: 'Notification not found' })
