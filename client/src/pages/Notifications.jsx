@@ -19,6 +19,9 @@ const Notifications = () => {
   const [emailForm, setEmailForm] = useState({ recipient: "", message: "", sendToAllClub: false, type: "email", link: "", linkToClub: false })
   const [recipientSearch, setRecipientSearch] = useState("")
   const [showSuggestions, setShowSuggestions] = useState(false)
+  
+  const [replyForm, setReplyForm] = useState({ notificationid: null, message: "" })
+  const [showReplies, setShowReplies] = useState({})
 
   const isAdmin = useMemo(() => session && ['CL', 'VP'].includes(session.role), [session?.role])
 
@@ -77,6 +80,16 @@ const Notifications = () => {
     }
   })
 
+  const replyMutation = useMutation({
+    mutationFn: (data) => api.post("/replyEmail", data),
+    onSuccess: () => {
+      alert("Reply sent successfully!")
+      setReplyForm({ notificationid: null, message: "" })
+      queryClient.invalidateQueries(['notifications'])
+    },
+    onError: (err) => alert(err.response?.data?.message || "Failed to send reply")
+  })
+
   const updateFilter = (field, value) => {
     setFilters(prev => ({ ...prev, [field]: value, page: field === "page" ? value : 1 }))
   }
@@ -132,9 +145,10 @@ const Notifications = () => {
           value={filters.mailbox} 
           onChange={(e) => updateFilter("mailbox", e.target.value)}
         >
-          <option value="inbox">Inbox</option>
-          <option value="sent">Sent</option>
-          <option value="all">All</option>
+          <option value="inbox">📥 Inbox</option>
+          <option value="sent">📤 Sent</option>
+          <option value="conversation">💬 Conversation</option>
+          <option value="all">📬 All</option>
         </select>
         <button onClick={() => { setFilterOpen(!filterOpen); setEmailFormOpen(false); }}>≡</button>
         <button onClick={() => { setEmailFormOpen(!emailFormOpen); setFilterOpen(false); }}>✉</button>
@@ -308,33 +322,127 @@ const Notifications = () => {
           <p style={{ textAlign: "center", opacity: 0.7 }}>No notifications.</p>
         ) : items.map(n => {
           const isSent = n.senderUsername === session?.username
+          // Person-to-person: has username (not club-wide) and has sender and is email type
+          const isPersonToPerson = !!n.username && !!n.senderUsername && n.type === 'email'
+          const isClubWide = !n.username && !!n.senderUsername
+          const hasReplies = n.replies && n.replies.length > 0
+          const isConversation = hasReplies || n.replyTo
+          
+          // For conversations, check if any message destined to current user is unread
+          // For sent non-conversation messages, always consider as read
+          const hasUnreadForUser = isConversation ? (
+            // Check parent message if user is recipient
+            (!isSent && !n.isRead) || 
+            // Check if any reply destined to user is unread
+            (hasReplies && n.replies.some(r => r.username === session?.username && !r.isRead))
+          ) : (isSent ? false : !n.isRead)
+          
+          // Check if user has received any messages in this conversation
+          const hasReceivedMessagesInConversation = isConversation ? (
+            // User received the parent message
+            !isSent ||
+            // User received at least one reply
+            (hasReplies && n.replies.some(r => r.username === session?.username))
+          ) : !isSent
+          
           return (
-          <div key={n.notificationid} className={`notification-card ${(isSent || n.isRead) ? 'read' : 'unread'}`}>
+          <div key={n.notificationid} className={`notification-card ${(isSent || n.isRead) && !hasUnreadForUser ? 'read' : 'unread'}`}>
             <div className="notification-head">
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <span className="badge" style={{ backgroundColor: isSent ? '#6366f1' : '#10b981', color: 'white' }}>
-                  {isSent ? 'Sent' : 'Received'}
-                </span>
-                <span className="badge" style={{ backgroundColor: (!isSent && !n.isRead) ? 'red' : undefined, color: (!isSent && !n.isRead) ? 'white' : undefined }}>{n.type}</span>
+                {isConversation ? (
+                  <span className="badge badge-conversation" style={{ backgroundColor: '#ec4899', color: 'white' }}>
+                    Conversation
+                  </span>
+                ) : (
+                  <span className="badge" style={{ backgroundColor: isSent ? '#6366f1' : '#10b981', color: 'white' }}>
+                    {isSent ? 'Sent' : 'Received'}
+                  </span>
+                )}
+                <span className="badge" style={{ backgroundColor: hasUnreadForUser ? 'red' : undefined, color: hasUnreadForUser ? 'white' : undefined }}>{n.type}</span>
               </div>
               <span className="notification-date">{new Date(n.createdAt).toLocaleString('en-GB')}</span>
             </div>
             {n.senderUsername && !isSent && (
-              <div className="notification-sender">From: {n.senderUsername}</div>
+              <div className="notification-sender">From: {n.senderUsername} {isClubWide ? 'to all club members' : ''}</div>
             )}
-            {isSent && n.recipientCount > 1 && (
-              <div className="notification-sender">To: {n.recipientCount} recipients in {n.clubName}</div>
+            {isSent && isClubWide && (
+              <div className="notification-sender">To: All members in {n.clubName}</div>
             )}
-            {isSent && n.recipientCount === 1 && (
+            {isSent && !isClubWide && n.username && (
               <div className="notification-sender">To: {n.username}</div>
             )}
             <div className="notification-body">
               {n.message}
             </div>
+            
+            {/* Display replies */}
+            {hasReplies && (
+              <div className="notification-replies">
+                <button 
+                  className="btn-ghost btn-sm" 
+                  onClick={() => setShowReplies(prev => ({ ...prev, [n.notificationid]: !prev[n.notificationid] }))}
+                  style={{ margin: '0.5rem 0', fontSize: '0.875rem' }}
+                >
+                  {showReplies[n.notificationid] ? '▲' : '▼'} {n.replies.length} {n.replies.length === 1 ? 'reply' : 'replies'}
+                </button>
+                {showReplies[n.notificationid] && (
+                  <div className="replies-list">
+                    {n.replies.map(reply => (
+                      <div key={reply.notificationid} className="reply-item">
+                        <div className="reply-header">
+                          <strong>{reply.senderUsername}</strong>
+                          <span className="reply-date">{new Date(reply.createdAt).toLocaleString('en-GB')}</span>
+                        </div>
+                        <div className="reply-body">{reply.message}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Reply form */}
+            {replyForm.notificationid === n.notificationid && (
+              <div className="reply-form">
+                <textarea
+                  value={replyForm.message}
+                  onChange={(e) => setReplyForm({ ...replyForm, message: e.target.value })}
+                  placeholder="Write your reply..."
+                  rows="3"
+                />
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <button 
+                    className="btn btn-sm" 
+                    onClick={() => {
+                      if (!replyForm.message.trim()) return alert("Reply cannot be empty")
+                      replyMutation.mutate({ replyTo: n.notificationid, message: replyForm.message })
+                    }}
+                    disabled={replyMutation.isPending}
+                  >
+                    {replyMutation.isPending ? 'Sending...' : 'Send Reply'}
+                  </button>
+                  <button 
+                    className="btn btn-sm btn-ghost" 
+                    onClick={() => setReplyForm({ notificationid: null, message: "" })}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+            
             <div className="notification-actions">
               {n.link && <Link className="btn btn-sm" to={n.link}>Open</Link>}
-              {!isSent && (
-                !n.isRead ? (
+              {(isPersonToPerson || isClubWide) && n.type === 'email' && replyForm.notificationid !== n.notificationid && (
+                <button 
+                  className="btn btn-sm" 
+                  onClick={() => setReplyForm({ notificationid: n.notificationid, message: "" })}
+                >
+                  Reply
+                </button>
+              )}
+              {hasReceivedMessagesInConversation && (
+                hasUnreadForUser ? (
                   <button className="btn btn-sm" onClick={() => markReadMutation.mutate({ id: n.notificationid, read: true })}>Mark read</button>
                 ) : (
                   <button className="btn btn-sm btn-ghost" onClick={() => markReadMutation.mutate({ id: n.notificationid, read: false })}>Mark unread</button>

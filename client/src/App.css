@@ -921,6 +921,67 @@ form button {
   height: 34.4px;
 }
 
+/* Reply Feature Styles */
+.badge-conversation {
+  background-color: #ec4899 !important;
+  color: white !important;
+}
+
+.notification-replies {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--muted);
+}
+
+.replies-list {
+  margin-top: 0.75rem;
+  padding-left: 1rem;
+  border-left: 3px solid #ec4899;
+}
+
+.reply-item {
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: rgba(236, 72, 153, 0.05);
+  border-radius: var(--radius-sm);
+}
+
+.reply-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.reply-date {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+}
+
+.reply-body {
+  color: var(--text-default);
+  font-size: 0.9rem;
+}
+
+.reply-form {
+  margin: 0.75rem 0;
+  padding: 1rem;
+  background: rgba(236, 72, 153, 0.05);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid #ec4899;
+}
+
+.reply-form textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 0.5rem;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  resize: vertical;
+}
+
 .browse-page {
   padding-bottom: 2rem;
 }

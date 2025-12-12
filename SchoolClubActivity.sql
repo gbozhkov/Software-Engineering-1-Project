@@ -1,4 +1,5 @@
 -- DROP IN CORRECT ORDER (because of foreign keys)
+DROP TABLE IF EXISTS notification_reads;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS events;
@@ -57,21 +58,34 @@ CREATE TABLE `comments` (
 
 CREATE TABLE `notifications` (
     `notificationid` int NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier for each notification',
-    `username` varchar(255) NOT NULL COMMENT 'Recipient username',
+    `username` varchar(255) COMMENT 'Recipient username',
     `senderUsername` varchar(255) DEFAULT NULL COMMENT 'Sender username if sent by a user',
     `clubName` varchar(255) DEFAULT NULL COMMENT 'Associated club if any',
     `type` varchar(50) NOT NULL DEFAULT 'info' COMMENT 'Category of notification',
     `message` text NOT NULL COMMENT 'Notification body',
     `link` text DEFAULT NULL COMMENT 'Optional link for the client to open',
     `isRead` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Whether the notification was read',
+    `replyTo` int DEFAULT NULL COMMENT 'ID of the notification this is replying to',
     `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation timestamp',
     PRIMARY KEY (`notificationid`),
     KEY `username` (`username`),
     KEY `senderUsername` (`senderUsername`),
     KEY `clubName` (`clubName`),
+    KEY `replyTo` (`replyTo`),
     CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`username`) REFERENCES `person` (`username`) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT `notifications_ibfk_2` FOREIGN KEY (`clubName`) REFERENCES `clubs` (`clubName`) ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT `notifications_ibfk_3` FOREIGN KEY (`senderUsername`) REFERENCES `person` (`username`) ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT `notifications_ibfk_3` FOREIGN KEY (`senderUsername`) REFERENCES `person` (`username`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `notifications_ibfk_4` FOREIGN KEY (`replyTo`) REFERENCES `notifications` (`notificationid`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+CREATE TABLE `notification_reads` (
+    `notificationid` int NOT NULL COMMENT 'ID of the club-wide notification',
+    `username` varchar(255) NOT NULL COMMENT 'Username who read/unread the notification',
+    `isRead` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Whether this user has read this club-wide notification',
+    PRIMARY KEY (`notificationid`, `username`),
+    KEY `username` (`username`),
+    CONSTRAINT `notification_reads_ibfk_1` FOREIGN KEY (`notificationid`) REFERENCES `notifications` (`notificationid`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `notification_reads_ibfk_2` FOREIGN KEY (`username`) REFERENCES `person` (`username`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 -- ===== CLUBS =====
@@ -362,88 +376,135 @@ INSERT INTO comments (`date`, `comment`, `rating`, `username`, `clubName`) VALUE
 ('2026-07-02 03:15:00','Won the theory competition with "Birds Aren''t Real 2.0: Fish Edition." Prize case of Monster is MINE.',5,'WhiteCan47','Agartha');
 
 -- ==== NOTIFICATIONS =====
-INSERT INTO notifications (`username`, `senderUsername`, `clubName`, `type`, `message`, `link`, `isRead`, `createdAt`) VALUES
-('Marta', NULL, 'Ski', 'membership', 'You have been promoted to VP in Ski', '/ClubPage/Ski', 1, '2025-11-15 09:00:00'),
-('Igor', NULL, 'Ski', 'membership', 'You have been accepted into Ski', '/ClubPage/Ski', 1, '2025-11-20 10:30:00'),
-('Ari', NULL, 'Ski', 'membership', 'You have been accepted into Ski', '/ClubPage/Ski', 1, '2025-10-05 14:20:00'),
-('Luca', NULL, 'Ski', 'membership', 'Your request to join Ski is pending. Check back soon.', '/ClubPage/Ski', 0, '2025-12-01 16:45:00'),
-('Fernanda', NULL, 'Ski', 'membership', 'Your request to join Ski is pending. Check back soon.', '/ClubPage/Ski', 0, '2025-12-05 11:15:00'),
-('Samuele', 'Francesco', 'Ski', 'email', 'URGENT: We need to discuss the gocciole situation from last apres-ski. A formal investigation is required. This is NOT a joke.', '/ClubPage/Ski', 1, '2025-11-22 08:30:00'),
-('Ari', 'Francesco', 'Ski', 'email', 'URGENT: We need to discuss the gocciole situation from last apres-ski. A formal investigation is required. This is NOT a joke.', '/ClubPage/Ski', 1, '2025-11-22 08:30:00'),
-('Igor', 'Francesco', 'Ski', 'email', 'URGENT: We need to discuss the gocciole situation from last apres-ski. A formal investigation is required. This is NOT a joke.', '/ClubPage/Ski', 0, '2025-11-22 08:30:00'),
-('Marta', 'Francesco', 'Ski', 'email', 'URGENT: We need to discuss the gocciole situation from last apres-ski. A formal investigation is required. This is NOT a joke.', '/ClubPage/Ski', 1, '2025-11-22 08:30:00'),
-('Fernanda', 'Francesco', 'Ski', 'email', 'URGENT: We need to discuss the gocciole situation from last apres-ski. A formal investigation is required. This is NOT a joke.', '/ClubPage/Ski', 1, '2025-11-22 08:30:00'),
-('Francesco', 'Samuele', 'Ski', 'email', 'Listen, the gocciole were just sitting there. Unattended. What was I supposed to do? Let them go to waste? I am a hero, not a villain.', NULL, 1, '2025-11-22 09:15:00'),
-('Samuele', 'Francesco', 'Ski', 'email', 'Hero?! HERO?! You ate MY ENTIRE PACK while I was helping with the hot chocolate station. There were witnesses, Samuele. WITNESSES.', NULL, 1, '2025-11-22 09:45:00'),
-('Francesco', 'Ari', 'Ski', 'email', 'I saw everything. Samuele was like a gocciole-eating machine. It was both impressive and terrifying. I have photos.', NULL, 0, '2025-11-22 10:00:00'),
-('Samuele', 'Francesco', 'Ski', 'event', 'Spring Backcountry Trip registration closes TOMORROW. Don''t forget avalanche gear. PS: Gocciole thieves not welcome.', '/ClubPage/Ski', 1, '2025-11-25 07:30:00'),
-('Ari', 'Francesco', 'Ski', 'event', 'Spring Backcountry Trip registration closes TOMORROW. Don''t forget avalanche gear. PS: Gocciole thieves not welcome.', '/ClubPage/Ski', 1, '2025-11-25 07:30:00'),
-('Igor', 'Francesco', 'Ski', 'event', 'Spring Backcountry Trip registration closes TOMORROW. Don''t forget avalanche gear. PS: Gocciole thieves not welcome.', '/ClubPage/Ski', 0, '2025-11-25 07:30:00'),
-('Marta', 'Francesco', 'Ski', 'event', 'Spring Backcountry Trip registration closes TOMORROW. Don''t forget avalanche gear. PS: Gocciole thieves not welcome.', '/ClubPage/Ski', 1, '2025-11-25 07:30:00'),
-('Fernanda', 'Francesco', 'Ski', 'event', 'Spring Backcountry Trip registration closes TOMORROW. Don''t forget avalanche gear. PS: Gocciole thieves not welcome.', '/ClubPage/Ski', 1, '2025-11-25 07:30:00'),
-('Francesco', 'Marta', 'Ski', 'email', 'Reminder: Equipment rental forms due by Friday. Also, can we PLEASE move past the gocciole drama? It has been 3 days.', '/ClubPage/Ski', 1, '2025-11-25 18:00:00'),
-('Samuele', 'Marta', 'Ski', 'email', 'Reminder: Equipment rental forms due by Friday. Also, can we PLEASE move past the gocciole drama? It has been 3 days.', '/ClubPage/Ski', 1, '2025-11-25 18:00:00'),
-('Ari', 'Marta', 'Ski', 'email', 'Reminder: Equipment rental forms due by Friday. Also, can we PLEASE move past the gocciole drama? It has been 3 days.', '/ClubPage/Ski', 1, '2025-11-25 18:00:00'),
-('Igor', 'Marta', 'Ski', 'email', 'Reminder: Equipment rental forms due by Friday. Also, can we PLEASE move past the gocciole drama? It has been 3 days.', '/ClubPage/Ski', 0, '2025-11-25 18:00:00'),
-('Marta', 'Francesco', 'Ski', 'email', 'We will NOT move past it until justice is served. I have started a petition. Already got 2 signatures.', NULL, 1, '2025-11-25 18:30:00'),
-('Samuele', 'Francesco', 'Ski', 'event', 'Après-Ski Night this Saturday! Music, hot chocolate, and games. Samuele is banned from the snack table. Non-negotiable.', '/ClubPage/Ski', 1, '2025-11-27 10:00:00'),
-('Ari', 'Francesco', 'Ski', 'event', 'Après-Ski Night this Saturday! Music, hot chocolate, and games. Samuele is banned from the snack table. Non-negotiable.', '/ClubPage/Ski', 1, '2025-11-27 10:00:00'),
-('Igor', 'Francesco', 'Ski', 'event', 'Après-Ski Night this Saturday! Music, hot chocolate, and games. Samuele is banned from the snack table. Non-negotiable.', '/ClubPage/Ski', 0, '2025-11-27 10:00:00'),
-('Marta', 'Francesco', 'Ski', 'event', 'Après-Ski Night this Saturday! Music, hot chocolate, and games. Samuele is banned from the snack table. Non-negotiable.', '/ClubPage/Ski', 1, '2025-11-27 10:00:00'),
-('Fernanda', 'Francesco', 'Ski', 'event', 'Après-Ski Night this Saturday! Music, hot chocolate, and games. Samuele is banned from the snack table. Non-negotiable.', '/ClubPage/Ski', 1, '2025-11-27 10:00:00'),
-('Francesco', 'Samuele', 'Ski', 'email', 'This is discrimination! I have rights! I will bring my OWN gocciole and guard them with my LIFE.', NULL, 1, '2025-11-27 10:30:00'),
-('Francesco', 'Igor', 'Ski', 'email', 'Hey Francesco, what wax do you recommend for icy conditions? Also, what is this gocciole thing everyone keeps talking about?', NULL, 0, '2025-11-28 14:20:00'),
-('Igor', 'Francesco', 'Ski', 'email', 'Use blue wax for ice. As for the gocciole... it is a dark chapter in our club history. Ask Samuele, but prepare for lies.', NULL, 0, '2025-11-28 15:00:00'),
-('Francesco', 'Ari', 'Ski', 'email', 'Found a video of Samuele eating the gocciole. Thinking of making a documentary. Working title: "The Great Gocciole Heist of 2025"', '/ClubPage/Ski', 1, '2025-11-29 11:00:00'),
-('Samuele', 'Ari', 'Ski', 'email', 'Found a video of Samuele eating the gocciole. Thinking of making a documentary. Working title: "The Great Gocciole Heist of 2025"', '/ClubPage/Ski', 1, '2025-11-29 11:00:00'),
-('Igor', 'Ari', 'Ski', 'email', 'Found a video of Samuele eating the gocciole. Thinking of making a documentary. Working title: "The Great Gocciole Heist of 2025"', '/ClubPage/Ski', 0, '2025-11-29 11:00:00'),
-('Marta', 'Ari', 'Ski', 'email', 'Found a video of Samuele eating the gocciole. Thinking of making a documentary. Working title: "The Great Gocciole Heist of 2025"', '/ClubPage/Ski', 1, '2025-11-29 11:00:00'),
-('Ari', 'Samuele', 'Ski', 'email', 'DELETE THAT VIDEO. I will trade you my entire collection of ski magazines. I am begging you.', NULL, 1, '2025-11-29 11:30:00'),('Samuele', 'Francesco', 'Ski', 'membership', 'Monday dryland training starts at 18:00 SHARP. Latecomers do extra squats. Looking at you, Samuele.', '/ClubPage/Ski', 1, '2025-12-01 16:00:00'),
-('Ari', 'Francesco', 'Ski', 'membership', 'Monday dryland training starts at 18:00 SHARP. Latecomers do extra squats. Looking at you, Samuele.', '/ClubPage/Ski', 1, '2025-12-01 16:00:00'),
-('Igor', 'Francesco', 'Ski', 'membership', 'Monday dryland training starts at 18:00 SHARP. Latecomers do extra squats. Looking at you, Samuele.', '/ClubPage/Ski', 0, '2025-12-01 16:00:00'),
-('Marta', 'Francesco', 'Ski', 'membership', 'Monday dryland training starts at 18:00 SHARP. Latecomers do extra squats. Looking at you, Samuele.', '/ClubPage/Ski', 1, '2025-12-01 16:00:00'),
-('Francesco', 'Marta', 'Ski', 'membership', 'As your new VP, I promise to bring order to this chaos. First order of business: mandatory gocciole-sharing training.', '/ClubPage/Ski', 1, '2025-12-03 09:00:00'),
-('Samuele', 'Marta', 'Ski', 'membership', 'As your new VP, I promise to bring order to this chaos. First order of business: mandatory gocciole-sharing training.', '/ClubPage/Ski', 1, '2025-12-03 09:00:00'),
-('Ari', 'Marta', 'Ski', 'membership', 'As your new VP, I promise to bring order to this chaos. First order of business: mandatory gocciole-sharing training.', '/ClubPage/Ski', 1, '2025-12-03 09:00:00'),
-('Igor', 'Marta', 'Ski', 'membership', 'As your new VP, I promise to bring order to this chaos. First order of business: mandatory gocciole-sharing training.', '/ClubPage/Ski', 0, '2025-12-03 09:00:00'),
-('Marta', 'Francesco', 'Ski', 'email', 'Should we accept Fernanda? She seems nice, but I need to know: can she protect her snacks from Samuele?', NULL, 1, '2025-12-04 10:30:00'),
-('Francesco', 'Samuele', 'Ski', 'email', 'Fine. FINE. I am sorry about the gocciole. There. I said it. Can we please move on? I bought you THREE new packs.', NULL, 1, '2025-12-05 14:00:00'),
-('Samuele', 'Francesco', 'Ski', 'email', 'Apology accepted. The three packs are a good start. Four would be better. But we can move forward. Maybe.', NULL, 1, '2025-12-05 14:30:00'),
-('Samuele', 'Francesco', 'Ski', 'email', 'OFFICIAL ANNOUNCEMENT: The Great Gocciole War has ended. Samuele and I have made peace. Thank you all for your patience during this difficult time.', '/ClubPage/Ski', 1, '2025-12-06 08:00:00'),
-('Ari', 'Francesco', 'Ski', 'email', 'OFFICIAL ANNOUNCEMENT: The Great Gocciole War has ended. Samuele and I have made peace. Thank you all for your patience during this difficult time.', '/ClubPage/Ski', 1, '2025-12-06 08:00:00'),
-('Igor', 'Francesco', 'Ski', 'email', 'OFFICIAL ANNOUNCEMENT: The Great Gocciole War has ended. Samuele and I have made peace. Thank you all for your patience during this difficult time.', '/ClubPage/Ski', 0, '2025-12-06 08:00:00'),
-('Marta', 'Francesco', 'Ski', 'email', 'OFFICIAL ANNOUNCEMENT: The Great Gocciole War has ended. Samuele and I have made peace. Thank you all for your patience during this difficult time.', '/ClubPage/Ski', 1, '2025-12-06 08:00:00'),
-('Francesco', 'Ari', 'Ski', 'email', 'PEACE AT LAST! This calls for a celebration. Bringing gocciole to next meeting. Everyone gets ONE. Yes Samuele, just ONE.', '/ClubPage/Ski', 1, '2025-12-06 09:00:00'),
-('Samuele', 'Ari', 'Ski', 'email', 'PEACE AT LAST! This calls for a celebration. Bringing gocciole to next meeting. Everyone gets ONE. Yes Samuele, just ONE.', '/ClubPage/Ski', 1, '2025-12-06 09:00:00'),
-('Igor', 'Ari', 'Ski', 'email', 'PEACE AT LAST! This calls for a celebration. Bringing gocciole to next meeting. Everyone gets ONE. Yes Samuele, just ONE.', '/ClubPage/Ski', 0, '2025-12-06 09:00:00'),
-('Marta', 'Ari', 'Ski', 'email', 'PEACE AT LAST! This calls for a celebration. Bringing gocciole to next meeting. Everyone gets ONE. Yes Samuele, just ONE.', '/ClubPage/Ski', 1, '2025-12-06 09:00:00'),
-('Samuele', 'Francesco', 'Ski', 'event', 'First Slope Trip 2026 details: Buses depart 06:00 sharp. Bring warm clothes and your OWN snacks. Especially your own snacks.', '/ClubPage/Ski', 1, '2025-12-08 10:00:00'),
-('Ari', 'Francesco', 'Ski', 'event', 'First Slope Trip 2026 details: Buses depart 06:00 sharp. Bring warm clothes and your OWN snacks. Especially your own snacks.', '/ClubPage/Ski', 1, '2025-12-08 10:00:00'),
-('Igor', 'Francesco', 'Ski', 'event', 'First Slope Trip 2026 details: Buses depart 06:00 sharp. Bring warm clothes and your OWN snacks. Especially your own snacks.', '/ClubPage/Ski', 0, '2025-12-08 10:00:00'),
-('Marta', 'Francesco', 'Ski', 'event', 'First Slope Trip 2026 details: Buses depart 06:00 sharp. Bring warm clothes and your OWN snacks. Especially your own snacks.', '/ClubPage/Ski', 1, '2025-12-08 10:00:00'),
-('Fernanda', 'Francesco', 'Ski', 'event', 'First Slope Trip 2026 details: Buses depart 06:00 sharp. Bring warm clothes and your OWN snacks. Especially your own snacks.', '/ClubPage/Ski', 0, '2025-12-08 10:00:00'),
-('Ayoub', NULL, 'Basketball', 'membership', 'You have been accepted into Basketball', '/ClubPage/Basketball', 1, '2025-10-15 11:00:00'),
-('Hana', 'Ayoub', 'Basketball', 'event', '3v3 tournament practice this Thursday. Mandatory for all teams. Let me know if you cannot make it.', '/ClubPage/Basketball', 1, '2025-12-07 15:00:00'),
-('Giorgie', 'Ayoub', 'Basketball', 'event', '3v3 tournament practice this Thursday. Mandatory for all teams. Let me know if you cannot make it.', '/ClubPage/Basketball', 0, '2025-12-07 15:00:00'),
-('Marco_b', 'Ayoub', 'Basketball', 'event', '3v3 tournament practice this Thursday. Mandatory for all teams. Let me know if you cannot make it.', '/ClubPage/Basketball', 1, '2025-12-07 15:00:00'),
-('Sofia', 'Raoul', 'Cooking', 'email', 'Pasta workshop ingredient list is ready. Check the club page for details!', '/ClubPage/Cooking', 0, '2025-12-09 09:30:00'),
-('Lena', 'Raoul', 'Cooking', 'email', 'Pasta workshop ingredient list is ready. Check the club page for details!', '/ClubPage/Cooking', 0, '2025-12-09 09:30:00'),
-('Yasmin', 'Raoul', 'Cooking', 'email', 'Pasta workshop ingredient list is ready. Check the club page for details!', '/ClubPage/Cooking', 0, '2025-12-09 09:30:00'),
-('Bella', NULL, 'Gaming', 'event', 'LAN party schedule has changed to Saturday night. See club page for updated details.', '/ClubPage/Gaming', 0, '2025-11-27 12:00:00'),
-('Alex', 'Bella', 'Gaming', 'email', 'Bring extra ethernet cables to LAN party. Last time we ran out and it was chaos!', NULL, 1, '2025-12-10 14:00:00'),
-('Nicolas', NULL, 'Debate', 'membership', 'You have been accepted into Debate', '/ClubPage/Debate', 1, '2025-10-20 13:00:00'),
-('Priya', 'Nicolas', 'Debate', 'event', 'Parliamentary Scrimmage moved to Thursday 19:00. Updated motion prep sheet attached to club page.', '/ClubPage/Debate', 0, '2025-12-09 10:00:00'),
-('Hector', 'Nicolas', 'Debate', 'event', 'Parliamentary Scrimmage moved to Thursday 19:00. Updated motion prep sheet attached to club page.', '/ClubPage/Debate', 0, '2025-12-09 10:00:00'),
-('Greta', 'Kenji', 'Environmental', 'event', 'Campus Cleanup tomorrow at 09:00. Meet at the quad. Gloves and bags provided!', '/ClubPage/Environmental', 0, '2025-12-10 18:00:00'),
-('Mo', 'Kenji', 'Environmental', 'event', 'Campus Cleanup tomorrow at 09:00. Meet at the quad. Gloves and bags provided!', '/ClubPage/Environmental', 0, '2025-12-10 18:00:00'),
-('Ethan', 'Rina', 'Coding', 'email', 'Hack Night topic is finalized: Building REST APIs. Bring your laptop with Node installed!', '/ClubPage/Coding', 0, '2025-12-08 12:00:00'),
-('Toby', 'Rina', 'Coding', 'email', 'Hack Night topic is finalized: Building REST APIs. Bring your laptop with Node installed!', '/ClubPage/Coding', 0, '2025-12-08 12:00:00'),
-('Layla', 'Diego', 'Dance', 'event', 'Salsa Social this Friday! Bring a guest, free entry. Beginners welcome!', '/ClubPage/Dance', 0, '2025-12-10 08:00:00'),
-('Helena', 'Diego', 'Dance', 'event', 'Salsa Social this Friday! Bring a guest, free entry. Beginners welcome!', '/ClubPage/Dance', 0, '2025-12-10 08:00:00'),
-('Clara', NULL, 'Book', 'event', 'New book picks are live for next meetup. Check them out on the club page!', '/ClubPage/Book', 0, '2025-11-20 09:00:00'),
-('Igor', 'Samuele', 'Ski', 'email', 'Welcome to Ski Club! Just a heads up: guard your snacks. Trust me on this. It is for your own safety.', NULL, 0, '2025-12-11 16:00:00'),
-('Samuele', 'Igor', 'Ski', 'email', 'Thanks! Wait, why do I need to guard my snacks? Is there a wild animal problem at the lodge?', NULL, 0, '2025-12-11 16:30:00'),
-('Igor', 'Ari', 'Ski', 'email', 'Should I tell the new guy about the gocciole incident or let him discover it naturally?', NULL, 0, '2025-12-11 17:00:00');
+INSERT INTO notifications (`username`, `senderUsername`, `clubName`, `type`, `message`, `link`, `isRead`, `createdAt`, `replyTo`) VALUES
+('Marta', NULL, 'Ski', 'membership', 'You have been promoted to VP in Ski', '/ClubPage/Ski', 1, '2025-11-15 09:00:00', NULL),
+('Igor', NULL, 'Ski', 'membership', 'You have been accepted into Ski', '/ClubPage/Ski', 1, '2025-11-20 10:30:00', NULL),
+('Ari', NULL, 'Ski', 'membership', 'You have been accepted into Ski', '/ClubPage/Ski', 1, '2025-10-05 14:20:00', NULL),
+('Luca', NULL, 'Ski', 'membership', 'Your request to join Ski is pending. Check back soon.', '/ClubPage/Ski', 0, '2025-12-01 16:45:00', NULL),
+('Fernanda', NULL, 'Ski', 'membership', 'Your request to join Ski is pending. Check back soon.', '/ClubPage/Ski', 0, '2025-12-05 11:15:00', NULL),
+(NULL, 'Francesco', 'Ski', 'email', 'URGENT: We need to discuss the gocciole situation from last apres-ski. A formal investigation is required. This is NOT a joke.', '/ClubPage/Ski', 1, '2025-11-22 08:30:00', NULL),
+('Francesco', 'Samuele', 'Ski', 'email', 'Listen, the gocciole were just sitting there. Unattended. What was I supposed to do? Let them go to waste? I am a hero, not a villain.', NULL, 1, '2025-11-22 09:15:00', NULL),
+('Samuele', 'Francesco', 'Ski', 'email', 'Hero?! HERO?! You ate MY ENTIRE PACK while I was helping with the hot chocolate station. There were witnesses, Samuele. WITNESSES.', NULL, 1, '2025-11-22 09:45:00', 7),
+('Francesco', 'Ari', 'Ski', 'email', 'I saw everything. Samuele was like a gocciole-eating machine. It was both impressive and terrifying. I have photos.', NULL, 0, '2025-11-22 10:00:00', NULL),
+(NULL, 'Francesco', 'Ski', 'event', 'Spring Backcountry Trip registration closes TOMORROW. Don''t forget avalanche gear. PS: Gocciole thieves not welcome.', '/ClubPage/Ski', 1, '2025-11-25 07:30:00', NULL),
+(NULL, 'Marta', 'Ski', 'email', 'Reminder: Equipment rental forms due by Friday. Also, can we PLEASE move past the gocciole drama? It has been 3 days.', '/ClubPage/Ski', 1, '2025-11-25 18:00:00', NULL),
+(NULL, 'Francesco', 'Ski', 'event', 'Après-Ski Night this Saturday! Music, hot chocolate, and games. Samuele is banned from the snack table. Non-negotiable.', '/ClubPage/Ski', 1, '2025-11-27 10:00:00', NULL),
+('Francesco', 'Samuele', 'Ski', 'email', 'This is discrimination! I have rights! I will bring my OWN gocciole and guard them with my LIFE.', NULL, 1, '2025-11-27 10:30:00', 7),
+('Francesco', 'Igor', 'Ski', 'email', 'Hey Francesco, what wax do you recommend for icy conditions? Also, what is this gocciole thing everyone keeps talking about?', NULL, 0, '2025-11-28 14:20:00', NULL),
+('Igor', 'Francesco', 'Ski', 'email', 'Use blue wax for ice. As for the gocciole... it is a dark chapter in our club history. Ask Samuele, but prepare for lies.', NULL, 0, '2025-11-28 15:00:00', 14),
+(NULL, 'Ari', 'Ski', 'email', 'Found a video of Samuele eating the gocciole. Thinking of making a documentary. Working title: "The Great Gocciole Heist of 2025"', '/ClubPage/Ski', 1, '2025-11-29 11:00:00', NULL),
+(NULL, 'Francesco', 'Ski', 'membership', 'Monday dryland training starts at 18:00 SHARP. Latecomers do extra squats. Looking at you, Samuele.', '/ClubPage/Ski', 1, '2025-12-01 16:00:00', NULL),
+(NULL, 'Marta', 'Ski', 'membership', 'As your new VP, I promise to bring order to this chaos. First order of business: mandatory gocciole-sharing training.', '/ClubPage/Ski', 1, '2025-12-03 09:00:00', NULL),
+('Marta', 'Francesco', 'Ski', 'email', 'Should we accept Fernanda? She seems nice, but I need to know: can she protect her snacks from Samuele?', NULL, 1, '2025-12-04 10:30:00', NULL),
+('Francesco', 'Marta', 'Ski', 'email', 'I don''t know, Samuele is a tough one.', NULL, 1, '2025-12-04 11:30:00', 19),
+('Francesco', 'Samuele', 'Ski', 'email', 'Fine. FINE. I am sorry about the gocciole. There. I said it. Can we please move on? I bought you THREE new packs.', NULL, 1, '2025-12-05 14:00:00', 7),
+('Samuele', 'Francesco', 'Ski', 'email', 'Apology accepted. The three packs are a good start. Four would be better. But we can move forward. Maybe.', NULL, 1, '2025-12-05 14:30:00', 7),
+(NULL, 'Francesco', 'Ski', 'email', 'OFFICIAL ANNOUNCEMENT: The Great Gocciole War has ended. Samuele and I have made peace. Thank you all for your patience during this difficult time.', '/ClubPage/Ski', 1, '2025-12-06 08:00:00', NULL),
+(NULL, 'Ari', 'Ski', 'email', 'PEACE AT LAST! This calls for a celebration. Bringing gocciole to next meeting. Everyone gets ONE. Yes Samuele, just ONE.', '/ClubPage/Ski', 1, '2025-12-06 09:00:00', NULL),
+(NULL, 'Francesco', 'Ski', 'event', 'First Slope Trip 2026 details: Buses depart 06:00 sharp. Bring warm clothes and your OWN snacks. Especially your own snacks.', '/ClubPage/Ski', 1, '2025-12-08 10:00:00', NULL),
+('Ayoub', NULL, 'Basketball', 'membership', 'You have been accepted into Basketball', '/ClubPage/Basketball', 1, '2025-10-15 11:00:00', NULL),
+(NULL, 'Ayoub', 'Basketball', 'event', '3v3 tournament practice this Thursday. Mandatory for all teams. Let me know if you cannot make it.', '/ClubPage/Basketball', 1, '2025-12-07 15:00:00', NULL),
+(NULL, 'Raoul', 'Cooking', 'email', 'Pasta workshop ingredient list is ready. Check the club page for details!', '/ClubPage/Cooking', 0, '2025-12-09 09:30:00', NULL),
+('Bella', NULL, 'Gaming', 'event', 'LAN party schedule has changed to Saturday night. See club page for updated details.', '/ClubPage/Gaming', 0, '2025-11-27 12:00:00', NULL),
+('Alex', 'Bella', 'Gaming', 'email', 'Bring extra ethernet cables to LAN party. Last time we ran out and it was chaos!', NULL, 1, '2025-12-10 14:00:00', NULL),
+('Nicolas', NULL, 'Debate', 'membership', 'You have been accepted into Debate', '/ClubPage/Debate', 1, '2025-10-20 13:00:00', NULL),
+(NULL, 'Nicolas', 'Debate', 'event', 'Parliamentary Scrimmage moved to Thursday 19:00. Updated motion prep sheet attached to club page.', '/ClubPage/Debate', 0, '2025-12-09 10:00:00', NULL),
+(NULL, 'Kenji', 'Environmental', 'event', 'Campus Cleanup tomorrow at 09:00. Meet at the quad. Gloves and bags provided!', '/ClubPage/Environmental', 0, '2025-12-10 18:00:00', NULL),
+(NULL, 'Rina', 'Coding', 'email', 'Hack Night topic is finalized: Building REST APIs. Bring your laptop with Node installed!', '/ClubPage/Coding', 0, '2025-12-08 12:00:00', NULL),
+(NULL, 'Diego', 'Dance', 'event', 'Salsa Social this Friday! Bring a guest, free entry. Beginners welcome!', '/ClubPage/Dance', 0, '2025-12-10 08:00:00', NULL),
+('Clara', NULL, 'Book', 'event', 'New book picks are live for next meetup. Check them out on the club page!', '/ClubPage/Book', 0, '2025-11-20 09:00:00', NULL),
+('Igor', 'Samuele', 'Ski', 'email', 'Welcome to Ski Club! Just a heads up: guard your snacks. Trust me on this. It is for your own safety.', NULL, 0, '2025-12-11 16:00:00', NULL),
+('Samuele', 'Igor', 'Ski', 'email', 'Thanks! Wait, why do I need to guard my snacks? Is there a wild animal problem at the lodge?', NULL, 0, '2025-12-11 16:30:00', 36),
+('Igor', 'Ari', 'Ski', 'email', 'Should I tell the new guy about the gocciole incident or let him discover it naturally?', NULL, 0, '2025-12-11 17:00:00', NULL);
+
+-- ===== Notification Reads (for club-wide emails only - username=NULL) =====
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(6, 'Francesco', 1), -- sender
+(6, 'Samuele', 1),
+(6, 'Ari', 1),
+(6, 'Marta', 1),
+(6, 'Igor', 1);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(10, 'Francesco', 1), -- sender
+(10, 'Samuele', 1),
+(10, 'Ari', 1),
+(10, 'Marta', 1),
+(10, 'Igor', 1);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(11, 'Francesco', 1),
+(11, 'Samuele', 1),
+(11, 'Ari', 1),
+(11, 'Marta', 1), -- sender
+(11, 'Igor', 1);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(12, 'Francesco', 1), -- sender
+(12, 'Samuele', 1),
+(12, 'Ari', 1),
+(12, 'Marta', 1),
+(12, 'Igor', 1);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(16, 'Francesco', 1),
+(16, 'Samuele', 1),
+(16, 'Ari', 1), -- sender
+(16, 'Marta', 1),
+(16, 'Igor', 1);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(17, 'Francesco', 1), -- sender
+(17, 'Samuele', 1),
+(17, 'Ari', 1),
+(17, 'Marta', 1),
+(17, 'Igor', 1);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(18, 'Francesco', 1),
+(18, 'Samuele', 1),
+(18, 'Ari', 1),
+(18, 'Marta', 1), -- sender
+(18, 'Igor', 1);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(22, 'Francesco', 1), -- sender
+(22, 'Samuele', 1),
+(22, 'Ari', 1),
+(22, 'Marta', 1),
+(22, 'Igor', 1);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(23, 'Francesco', 1),
+(23, 'Samuele', 1),
+(23, 'Ari', 1), -- sender
+(23, 'Marta', 1),
+(23, 'Igor', 1);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(25, 'Francesco', 1), -- sender
+(25, 'Samuele', 1),
+(25, 'Ari', 1),
+(25, 'Marta', 1),
+(25, 'Igor', 1);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(27, 'Ayoub', 1), -- sender
+(27, 'Hana', 1),
+(27, 'Giorgie', 1),
+(27, 'Marco_b', 1),
+(27, 'Harry', 1);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(28, 'Sofia', 0),
+(28, 'Raoul', 1), -- sender
+(28, 'Lena', 0),
+(28, 'Yasmin', 0);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(32, 'Nicolas', 1), -- sender
+(32, 'Priya', 0),
+(32, 'Hector', 0);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(33, 'Greta', 0),
+(33, 'Kenji', 1), -- sender
+(33, 'Mo', 0);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(34, 'Ethan', 0),
+(34, 'Rina', 1), -- sender
+(34, 'Toby', 0);
+INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
+(35, 'Layla', 0),
+(35, 'Diego', 1), -- sender
+(35, 'Helena', 0);
 
 -- ===== Update clubs.memberCount to match actual inserted people (counts based on above inserts) =====
 UPDATE clubs SET memberCount = (
