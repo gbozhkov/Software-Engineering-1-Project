@@ -328,7 +328,7 @@ const ClubPage = () => {
                                 </div>
                                 <h2>{event.title}</h2>
                             </div>
-                            {event.accepted && (
+                            {event.accepted && isMember && (
                                 <button className="btn-ghost btn-sm" type="button" onClick={() => downloadICS(event)}>
                                     Add to calendar
                                 </button>

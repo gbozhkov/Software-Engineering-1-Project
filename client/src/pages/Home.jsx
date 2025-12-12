@@ -174,9 +174,11 @@ const Home = () => {
                                     <span className="event-date">{formatDateRange(event.startDate, event.endDate)}</span>
                                 </div>
                             </div>
-                            <button className="btn-ghost btn-sm" type="button" onClick={() => downloadICS(event)}>
-                                Add to calendar
-                            </button>
+                            {session.club === event.clubName && (
+                                <button className="btn-ghost btn-sm" type="button" onClick={() => downloadICS(event)}>
+                                    Add to calendar
+                                </button>
+                            )}
                         </div>
                         <p className="event-description">{event.description}</p>
                     </div>
