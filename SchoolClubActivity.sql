@@ -1,5 +1,4 @@
 -- DROP IN CORRECT ORDER (because of foreign keys)
-DROP TABLE IF EXISTS notification_reads;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS events;
@@ -76,16 +75,6 @@ CREATE TABLE `notifications` (
     CONSTRAINT `notifications_ibfk_2` FOREIGN KEY (`clubName`) REFERENCES `clubs` (`clubName`) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT `notifications_ibfk_3` FOREIGN KEY (`senderUsername`) REFERENCES `person` (`username`) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT `notifications_ibfk_4` FOREIGN KEY (`replyTo`) REFERENCES `notifications` (`notificationid`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
-
-CREATE TABLE `notification_reads` (
-    `notificationid` int NOT NULL COMMENT 'ID of the club-wide notification',
-    `username` varchar(255) NOT NULL COMMENT 'Username who read/unread the notification',
-    `isRead` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Whether this user has read this club-wide notification',
-    PRIMARY KEY (`notificationid`, `username`),
-    KEY `username` (`username`),
-    CONSTRAINT `notification_reads_ibfk_1` FOREIGN KEY (`notificationid`) REFERENCES `notifications` (`notificationid`) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT `notification_reads_ibfk_2` FOREIGN KEY (`username`) REFERENCES `person` (`username`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 -- ===== CLUBS =====
@@ -416,95 +405,6 @@ INSERT INTO notifications (`username`, `senderUsername`, `clubName`, `type`, `me
 ('Igor', 'Samuele', 'Ski', 'email', 'Welcome to Ski Club! Just a heads up: guard your snacks. Trust me on this. It is for your own safety.', NULL, 0, '2025-12-11 16:00:00', NULL),
 ('Samuele', 'Igor', 'Ski', 'email', 'Thanks! Wait, why do I need to guard my snacks? Is there a wild animal problem at the lodge?', NULL, 0, '2025-12-11 16:30:00', 36),
 ('Igor', 'Ari', 'Ski', 'email', 'Should I tell the new guy about the gocciole incident or let him discover it naturally?', NULL, 0, '2025-12-11 17:00:00', NULL);
-
--- ===== Notification Reads (for club-wide emails only - username=NULL) =====
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(6, 'Francesco', 1), -- sender
-(6, 'Samuele', 1),
-(6, 'Ari', 1),
-(6, 'Marta', 1),
-(6, 'Igor', 1);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(10, 'Francesco', 1), -- sender
-(10, 'Samuele', 1),
-(10, 'Ari', 1),
-(10, 'Marta', 1),
-(10, 'Igor', 1);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(11, 'Francesco', 1),
-(11, 'Samuele', 1),
-(11, 'Ari', 1),
-(11, 'Marta', 1), -- sender
-(11, 'Igor', 1);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(12, 'Francesco', 1), -- sender
-(12, 'Samuele', 1),
-(12, 'Ari', 1),
-(12, 'Marta', 1),
-(12, 'Igor', 1);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(16, 'Francesco', 1),
-(16, 'Samuele', 1),
-(16, 'Ari', 1), -- sender
-(16, 'Marta', 1),
-(16, 'Igor', 1);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(17, 'Francesco', 1), -- sender
-(17, 'Samuele', 1),
-(17, 'Ari', 1),
-(17, 'Marta', 1),
-(17, 'Igor', 1);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(18, 'Francesco', 1),
-(18, 'Samuele', 1),
-(18, 'Ari', 1),
-(18, 'Marta', 1), -- sender
-(18, 'Igor', 1);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(22, 'Francesco', 1), -- sender
-(22, 'Samuele', 1),
-(22, 'Ari', 1),
-(22, 'Marta', 1),
-(22, 'Igor', 1);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(23, 'Francesco', 1),
-(23, 'Samuele', 1),
-(23, 'Ari', 1), -- sender
-(23, 'Marta', 1),
-(23, 'Igor', 1);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(25, 'Francesco', 1), -- sender
-(25, 'Samuele', 1),
-(25, 'Ari', 1),
-(25, 'Marta', 1),
-(25, 'Igor', 1);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(27, 'Ayoub', 1), -- sender
-(27, 'Hana', 1),
-(27, 'Giorgie', 1),
-(27, 'Marco_b', 1),
-(27, 'Harry', 1);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(28, 'Sofia', 0),
-(28, 'Raoul', 1), -- sender
-(28, 'Lena', 0),
-(28, 'Yasmin', 0);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(32, 'Nicolas', 1), -- sender
-(32, 'Priya', 0),
-(32, 'Hector', 0);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(33, 'Greta', 0),
-(33, 'Kenji', 1), -- sender
-(33, 'Mo', 0);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(34, 'Ethan', 0),
-(34, 'Rina', 1), -- sender
-(34, 'Toby', 0);
-INSERT INTO notification_reads (`notificationid`, `username`, `isRead`) VALUES
-(35, 'Layla', 0),
-(35, 'Diego', 1), -- sender
-(35, 'Helena', 0);
 
 -- ===== Update clubs.memberCount to match actual inserted people (counts based on above inserts) =====
 UPDATE clubs SET memberCount = (

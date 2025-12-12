@@ -388,6 +388,16 @@ form button {
   background-repeat: no-repeat;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   margin: -1.75rem -1.75rem 0 -1.75rem;
+  position: relative;
+}
+
+.club-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 90%, rgba(255, 255, 255, 1) 100%);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  pointer-events: none;
 }
 .club-content {
   padding: 1rem 0 0 0;
@@ -567,7 +577,7 @@ form button {
 /* Progress Bar */
 .progress-bar-container {
   width: min(340px, 100%);
-  margin: 1.5rem auto;
+  margin: 0.5rem auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -575,7 +585,7 @@ form button {
 }
 .progress-container {
   flex: 1;
-  height: 1.3rem;
+  height: 0.4rem;
   border-radius: 999px;
   background: rgba(148, 163, 184, 0.18);
   overflow: hidden;
@@ -682,6 +692,14 @@ form button {
   background-position: center;
   background-repeat: no-repeat;
   margin-bottom: 1.5rem;
+  position: relative;
+}
+.club-page-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 70%, rgba(255, 255, 255, 1) 100%);
+  pointer-events: none;
 }
 .club-hero {
   display: grid;

@@ -147,7 +147,8 @@ const Notifications = () => {
         >
           <option value="inbox">📥 Inbox</option>
           <option value="sent">📤 Sent</option>
-          <option value="conversation">💬 Conversation</option>
+          <option value="club">🏢 Club</option>
+          <option value="conversation">💬 Conv</option>
           <option value="all">📬 All</option>
         </select>
         <button onClick={() => { setFilterOpen(!filterOpen); setEmailFormOpen(false); }}>≡</button>
@@ -433,7 +434,7 @@ const Notifications = () => {
             
             <div className="notification-actions">
               {n.link && <Link className="btn btn-sm" to={n.link}>Open</Link>}
-              {(isPersonToPerson || isClubWide) && n.type === 'email' && replyForm.notificationid !== n.notificationid && (
+              {isPersonToPerson && replyForm.notificationid !== n.notificationid && (
                 <button 
                   className="btn btn-sm" 
                   onClick={() => setReplyForm({ notificationid: n.notificationid, message: "" })}
@@ -441,7 +442,7 @@ const Notifications = () => {
                   Reply
                 </button>
               )}
-              {hasReceivedMessagesInConversation && (
+              {n.username && hasReceivedMessagesInConversation && (
                 hasUnreadForUser ? (
                   <button className="btn btn-sm" onClick={() => markReadMutation.mutate({ id: n.notificationid, read: true })}>Mark read</button>
                 ) : (

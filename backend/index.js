@@ -802,13 +802,14 @@ app.get('/notifications', requireAuth, async (req, res) => {
       // Show conversations - only parent emails with replies
       // username check: person-to-person (username set) or sent by user (any email type)
       const [convRows] = await dbp.query(
-        `SELECT DISTINCT n.*, 1 as recipientCount
+        `SELECT DISTINCT n.*, 1 as recipientCount,
+                COALESCE((SELECT MAX(r.createdAt) FROM notifications r WHERE r.replyTo = n.notificationid), n.createdAt) as lastReplyTime
          FROM notifications n
          WHERE ((n.username = ? AND n.type = 'email') OR (n.senderUsername = ? AND n.type = 'email'))
            AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
            AND n.replyTo IS NULL
            AND EXISTS(SELECT 1 FROM notifications r WHERE r.replyTo = n.notificationid)
-         ORDER BY n.createdAt ${direction} LIMIT ? OFFSET ?`,
+         ORDER BY lastReplyTime ${direction} LIMIT ? OFFSET ?`,
         [req.user.username, req.user.username, like, like, limit, offset]
       )
       const [[{ total: convTotal }]] = await dbp.query(
@@ -823,9 +824,11 @@ app.get('/notifications', requireAuth, async (req, res) => {
       rows = convRows
       total = convTotal
     } else if (mailbox === 'sent') {
-      // Show sent emails - all sent parent messages + conversations with at least one sent message
+      // Show sent person-to-person emails - all sent parent messages + conversations with at least one sent message (no club-wide)
       const [sentRows] = await dbp.query(
-        `SELECT DISTINCT n.*, 1 as recipientCount FROM notifications n
+        `SELECT DISTINCT n.*, 1 as recipientCount,
+                COALESCE((SELECT MAX(r.createdAt) FROM notifications r WHERE r.replyTo = n.notificationid), n.createdAt) as lastReplyTime
+         FROM notifications n
          WHERE n.replyTo IS NULL
            AND (n.message LIKE ? OR n.type LIKE ?)
            AND (
@@ -835,7 +838,7 @@ app.get('/notifications', requireAuth, async (req, res) => {
                WHERE r.replyTo = n.notificationid AND r.senderUsername = ?
              )
            )
-         ORDER BY n.${orderKey} ${direction} LIMIT ? OFFSET ?`,
+         ORDER BY ${orderKey === 'created' ? 'lastReplyTime' : 'n.' + orderKey} ${direction} LIMIT ? OFFSET ?`,
         [like, like, req.user.username, req.user.username, limit, offset]
       )
       const [[{ total: sentTotal }]] = await dbp.query(
@@ -853,43 +856,69 @@ app.get('/notifications', requireAuth, async (req, res) => {
       )
       rows = sentRows
       total = sentTotal
+    } else if (mailbox === 'club') {
+      // Show club-wide emails from user's club (not sent by user)
+      const [clubRows] = await dbp.query(
+        `SELECT n.*, 1 as recipientCount FROM notifications n
+         WHERE n.replyTo IS NULL
+           AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
+           AND n.username IS NULL
+           AND n.clubName = ?
+           AND n.senderUsername != ?
+         ORDER BY n.${orderKey} ${direction} LIMIT ? OFFSET ?`,
+        [like, like, req.user.club, req.user.username, limit, offset]
+      )
+      const [[{ total: clubTotal }]] = await dbp.query(
+        `SELECT COUNT(*) AS total FROM notifications n
+         WHERE n.replyTo IS NULL
+           AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
+           AND n.username IS NULL
+           AND n.clubName = ?
+           AND n.senderUsername != ?`,
+        [like, like, req.user.club, req.user.username]
+      )
+      rows = clubRows
+      total = clubTotal
     } else if (mailbox === 'all') {
-      // Show both inbox and sent - all messages user is involved in + club-wide from user's club
+      // Show both inbox and sent - all messages user is involved in
       const [allRows] = await dbp.query(
-        `SELECT DISTINCT n.*, 1 as recipientCount FROM notifications n
+        `SELECT DISTINCT n.*, 1 as recipientCount,
+                COALESCE((SELECT MAX(r.createdAt) FROM notifications r WHERE r.replyTo = n.notificationid), n.createdAt) as lastReplyTime
+         FROM notifications n
          WHERE n.replyTo IS NULL
            AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
            AND (
              n.username = ? 
              OR n.senderUsername = ?
-             OR (n.username IS NULL AND n.clubName = ?)
+             OR (n.username IS NULL AND n.clubName = ? AND n.senderUsername != ?)
              OR EXISTS(
                SELECT 1 FROM notifications r 
                WHERE r.replyTo = n.notificationid 
                AND (r.username = ? OR r.senderUsername = ?)
              )
            )
-         ORDER BY n.createdAt ${direction}`,
-        [like, like, req.user.username, req.user.username, req.user.club, req.user.username, req.user.username]
+         ORDER BY lastReplyTime ${direction}`,
+        [like, like, req.user.username, req.user.username, req.user.club, req.user.username, req.user.username, req.user.username]
       )
       rows = allRows.slice(offset, offset + limit)
       total = allRows.length
     } else {
-      // Default: inbox - all received parent messages + conversations with at least one received message + club-wide emails from user's club
+      // Default: inbox - all received person-to-person messages + conversations with at least one received message (no club-wide)
       const [inboxRows] = await dbp.query(
-        `SELECT DISTINCT n.*, 1 as recipientCount FROM notifications n
+        `SELECT DISTINCT n.*, 1 as recipientCount,
+                COALESCE((SELECT MAX(r.createdAt) FROM notifications r WHERE r.replyTo = n.notificationid), n.createdAt) as lastReplyTime
+         FROM notifications n
          WHERE n.replyTo IS NULL
            AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
            AND (
              n.username = ? 
-             OR (n.username IS NULL AND n.clubName = ?)
              OR EXISTS(
                SELECT 1 FROM notifications r 
                WHERE r.replyTo = n.notificationid AND r.username = ?
              )
            )
-         ORDER BY n.${orderKey} ${direction} LIMIT ? OFFSET ?`,
-        [like, like, req.user.username, req.user.club, req.user.username, limit, offset]
+         ORDER BY ${orderKey === 'created' ? 'lastReplyTime' : 'n.' + orderKey} ${direction} LIMIT ? OFFSET ?`,
+        [like, like, req.user.username, req.user.username, limit, offset]
       )
       const [[{ total: inboxTotal }]] = await dbp.query(
         `SELECT COUNT(DISTINCT n.notificationid) AS total FROM notifications n
@@ -897,13 +926,12 @@ app.get('/notifications', requireAuth, async (req, res) => {
            AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
            AND (
              n.username = ? 
-             OR (n.username IS NULL AND n.clubName = ?)
              OR EXISTS(
                SELECT 1 FROM notifications r 
                WHERE r.replyTo = n.notificationid AND r.username = ?
              )
            )`,
-        [like, like, req.user.username, req.user.club, req.user.username]
+        [like, like, req.user.username, req.user.username]
       )
       rows = inboxRows
       total = inboxTotal
@@ -915,37 +943,21 @@ app.get('/notifications', requireAuth, async (req, res) => {
         'SELECT * FROM notifications WHERE replyTo = ? ORDER BY createdAt ASC',
         [row.notificationid]
       )
-      
-      // Get read status for club-wide replies
-      for (const reply of replies) {
-        if (reply.username === null) {
-          const [[readStatus]] = await dbp.query(
-            'SELECT isRead FROM notification_reads WHERE notificationid = ? AND username = ?',
-            [reply.notificationid, req.user.username]
-          )
-          reply.isRead = readStatus ? readStatus.isRead : 0
-        }
-      }
-      
       row.replies = replies
       
-      // For conversations, update createdAt to the most recent message time
-      if (replies.length > 0) {
-        const mostRecentReply = replies[replies.length - 1]
-        if (new Date(mostRecentReply.createdAt) > new Date(row.createdAt)) {
-          row.createdAt = mostRecentReply.createdAt
-        }
-      }
-      
-      // For club-wide notifications (username=NULL), get read status from notification_reads
-      if (row.username === null) {
-        const [[readStatus]] = await dbp.query(
-          'SELECT isRead FROM notification_reads WHERE notificationid = ? AND username = ?',
-          [row.notificationid, req.user.username]
-        )
-        row.isRead = readStatus ? readStatus.isRead : 0
+      // For conversations, update createdAt to use lastReplyTime (calculated in SQL query)
+      if (row.lastReplyTime) {
+        row.createdAt = row.lastReplyTime
+        delete row.lastReplyTime // Remove the helper field
       }
     }
+    
+    // Re-sort the rows by createdAt after updating timestamps
+    rows.sort((a, b) => {
+      const dateA = new Date(a.createdAt)
+      const dateB = new Date(b.createdAt)
+      return direction === 'DESC' ? dateB - dateA : dateA - dateB
+    })
     
     return res.json({ data: rows, page, pages: Math.ceil(total / limit) || 1, total })
   } catch (err) {
@@ -957,24 +969,14 @@ app.get('/notifications', requireAuth, async (req, res) => {
 app.get('/notifications/unreadCount', requireAuth, async (req, res) => {
   console.log(`GET /notifications/unreadCount - User: ${req.user?.username}`)
   try {
-    // Count personal notifications (conversations as 1)
-    const [[{ personalTotal }]] = await dbp.query(
-      `SELECT COUNT(DISTINCT COALESCE(replyTo, notificationid)) AS personalTotal 
+    // Count conversations as 1: count distinct parent IDs where user has unread messages
+    const [[{ total }]] = await dbp.query(
+      `SELECT COUNT(DISTINCT COALESCE(replyTo, notificationid)) AS total 
        FROM notifications 
        WHERE username = ? AND isRead = 0`,
       [req.user.username]
     )
-    
-    // Count unread club-wide notifications for this user
-    const [[{ clubWideTotal }]] = await dbp.query(
-      `SELECT COUNT(*) AS clubWideTotal 
-       FROM notification_reads nr
-       JOIN notifications n ON nr.notificationid = n.notificationid
-       WHERE nr.username = ? AND nr.isRead = 0 AND n.username IS NULL AND n.clubName = ?`,
-      [req.user.username, req.user.club]
-    )
-    
-    return res.json({ total: personalTotal + clubWideTotal })
+    return res.json({ total })
   } catch (err) {
     console.error('Fetch unread count failed', err)
     return res.status(500).json({ message: 'Failed to fetch unread count' })
@@ -1013,78 +1015,37 @@ app.post('/replyEmail', requireAuth, async (req, res) => {
       return res.status(400).json({ message: 'Cannot reply to a reply. Please reply to the original message.' })
     }
     
-    // Verify this is an email notification
+    // Verify this is a person-to-person email
+    // Club-wide emails have username = NULL, person-to-person have username set
     if (original.type !== 'email') {
       return res.status(400).json({ message: 'Can only reply to email notifications' })
     }
     
-    // Check if this is a club-wide email or person-to-person
-    const isClubWide = !original.username
-    
-    if (isClubWide) {
-      // Club-wide reply: send to all club members
-      if (!original.clubName) {
-        return res.status(400).json({ message: 'Club-wide email must have a club' })
-      }
-      
-      // Create club-wide reply notification
-      const [result] = await dbp.query(
-        `INSERT INTO notifications (username, senderUsername, clubName, type, message, link, isRead, replyTo, createdAt) 
-         VALUES (NULL, ?, ?, 'email', ?, NULL, 0, ?, NOW())`,
-        [req.user.username, original.clubName, message, replyTo]
-      )
-      const replyId = result.insertId
-      
-      // Get all club members to create notification_reads entries
-      const [members] = await dbp.query(
-        "SELECT username FROM person WHERE club = ? AND role IN ('CL', 'VP', 'CM')",
-        [original.clubName]
-      )
-      
-      // Create notification_reads entries for each member (sender gets it marked as read)
-      for (const member of members) {
-        const isRead = member.username === req.user.username ? 1 : 0
-        await dbp.query(
-          'INSERT INTO notification_reads (notificationid, username, isRead) VALUES (?, ?, ?)',
-          [replyId, member.username, isRead]
-        )
-      }
-      
-      // Mark parent as unread for all members except sender in notification_reads
-      for (const member of members) {
-        if (member.username !== req.user.username) {
-          await dbp.query(
-            `INSERT INTO notification_reads (notificationid, username, isRead) 
-             VALUES (?, ?, 0) 
-             ON DUPLICATE KEY UPDATE isRead = 0`,
-            [replyTo, member.username]
-          )
-        }
-      }
-    } else {
-      // Person-to-person reply
-      // Determine recipient: if current user is the original sender, reply to the recipient; otherwise reply to the sender
-      const recipient = original.senderUsername === req.user.username ? original.username : original.senderUsername
-      
-      if (!recipient) return res.status(400).json({ message: 'Unable to determine reply recipient' })
-      
-      // Mark the parent notification as unread for the recipient
-      await dbp.query(
-        'UPDATE notifications SET isRead = 0 WHERE notificationid = ? AND username = ?',
-        [replyTo, recipient]
-      )
-      
-      // Create reply notification
-      await createNotification({
-        username: recipient,
-        senderUsername: req.user.username,
-        clubName: null,
-        type: 'email',
-        message: message,
-        link: null,
-        replyTo: replyTo
-      })
+    if (!original.username) {
+      return res.status(400).json({ message: 'Cannot reply to club-wide emails' })
     }
+    
+    // Determine recipient: if current user is the original sender, reply to the recipient; otherwise reply to the sender
+    const recipient = original.senderUsername === req.user.username ? original.username : original.senderUsername
+    
+    if (!recipient) return res.status(400).json({ message: 'Unable to determine reply recipient' })
+    
+    // Mark the parent notification as unread for the recipient
+    await dbp.query(
+      'UPDATE notifications SET isRead = 0 WHERE notificationid = ? AND username = ?',
+      [replyTo, recipient]
+    )
+    
+    // Create reply notification
+    await createNotification({
+      username: recipient,
+      senderUsername: req.user.username,
+      clubName: null,
+      type: 'email',
+      message: message,
+      link: null,
+      replyTo: replyTo
+    })
     
     return res.status(201).json({ message: 'Reply sent successfully' })
   } catch (err) {
@@ -1109,27 +1070,11 @@ app.post('/sendEmail', requireAuth, async (req, res) => {
       }
       
       // Create single club-wide notification with username=NULL
-      const [result] = await dbp.query(
+      await dbp.query(
         `INSERT INTO notifications (username, senderUsername, clubName, type, message, link, isRead, createdAt) 
-         VALUES (NULL, ?, ?, ?, ?, ?, 0, NOW())`,
+         VALUES (NULL, ?, ?, ?, ?, ?, 1, NOW())`,
         [req.user.username, req.user.club, notificationType, message, link || null]
       )
-      const notificationId = result.insertId
-      
-      // Get all club members to create notification_reads entries
-      const [members] = await dbp.query(
-        "SELECT username FROM person WHERE club = ? AND role IN ('CL', 'VP', 'CM')",
-        [req.user.club]
-      )
-      
-      // Create notification_reads entries for each member (sender gets it marked as read)
-      for (const member of members) {
-        const isRead = member.username === req.user.username ? 1 : 0
-        await dbp.query(
-          'INSERT INTO notification_reads (notificationid, username, isRead) VALUES (?, ?, ?)',
-          [notificationId, member.username, isRead]
-        )
-      }
       
       return res.status(201).json({ message: `Email sent to all club members` })
     } else {
@@ -1193,56 +1138,9 @@ app.put('/notifications/:id/read', requireAuth, async (req, res) => {
     const [[notification]] = await dbp.query('SELECT * FROM notifications WHERE notificationid = ?', [id])
     if (!notification) return res.status(404).json({ message: 'Notification not found' })
     
-    // Handle club-wide notifications (username=NULL)
+    // Block marking club-wide emails as read (username=NULL)
     if (notification.username === null) {
-      // Check if user is in the club
-      if (notification.clubName !== req.user.club) {
-        return forbidden(res)
-      }
-      
-      // Check if this is part of a conversation
-      const [[{ hasReplies }]] = await dbp.query(
-        'SELECT COUNT(*) as hasReplies FROM notifications WHERE replyTo = ?',
-        [id]
-      )
-      
-      if (hasReplies > 0 || notification.replyTo) {
-        // This is a conversation - mark all messages in thread for current user as read
-        const parentId = notification.replyTo || id
-        
-        // Mark parent as read
-        await dbp.query(
-          `INSERT INTO notification_reads (notificationid, username, isRead) 
-           VALUES (?, ?, 1) 
-           ON DUPLICATE KEY UPDATE isRead = 1`,
-          [parentId, req.user.username]
-        )
-        
-        // Get all replies and mark them as read
-        const [replies] = await dbp.query(
-          'SELECT notificationid FROM notifications WHERE replyTo = ?',
-          [parentId]
-        )
-        
-        for (const reply of replies) {
-          await dbp.query(
-            `INSERT INTO notification_reads (notificationid, username, isRead) 
-             VALUES (?, ?, 1) 
-             ON DUPLICATE KEY UPDATE isRead = 1`,
-            [reply.notificationid, req.user.username]
-          )
-        }
-      } else {
-        // Single club-wide notification
-        await dbp.query(
-          `INSERT INTO notification_reads (notificationid, username, isRead) 
-           VALUES (?, ?, 1) 
-           ON DUPLICATE KEY UPDATE isRead = 1`,
-          [id, req.user.username]
-        )
-      }
-      
-      return res.json({ message: 'Notification marked as read' })
+      return res.status(400).json({ message: 'Cannot mark club-wide emails as read' })
     }
     
     // Check if notification belongs to user
@@ -1283,56 +1181,9 @@ app.put('/notifications/:id/unread', requireAuth, async (req, res) => {
     const [[notification]] = await dbp.query('SELECT * FROM notifications WHERE notificationid = ?', [id])
     if (!notification) return res.status(404).json({ message: 'Notification not found' })
     
-    // Handle club-wide notifications (username=NULL)
+    // Block marking club-wide emails as unread (username=NULL)
     if (notification.username === null) {
-      // Check if user is in the club
-      if (notification.clubName !== req.user.club) {
-        return forbidden(res)
-      }
-      
-      // Check if this is part of a conversation
-      const [[{ hasReplies }]] = await dbp.query(
-        'SELECT COUNT(*) as hasReplies FROM notifications WHERE replyTo = ?',
-        [id]
-      )
-      
-      if (hasReplies > 0 || notification.replyTo) {
-        // This is a conversation - mark all messages in thread for current user as unread
-        const parentId = notification.replyTo || id
-        
-        // Mark parent as unread
-        await dbp.query(
-          `INSERT INTO notification_reads (notificationid, username, isRead) 
-           VALUES (?, ?, 0) 
-           ON DUPLICATE KEY UPDATE isRead = 0`,
-          [parentId, req.user.username]
-        )
-        
-        // Get all replies and mark them as unread
-        const [replies] = await dbp.query(
-          'SELECT notificationid FROM notifications WHERE replyTo = ?',
-          [parentId]
-        )
-        
-        for (const reply of replies) {
-          await dbp.query(
-            `INSERT INTO notification_reads (notificationid, username, isRead) 
-             VALUES (?, ?, 0) 
-             ON DUPLICATE KEY UPDATE isRead = 0`,
-            [reply.notificationid, req.user.username]
-          )
-        }
-      } else {
-        // Single club-wide notification
-        await dbp.query(
-          `INSERT INTO notification_reads (notificationid, username, isRead) 
-           VALUES (?, ?, 0) 
-           ON DUPLICATE KEY UPDATE isRead = 0`,
-          [id, req.user.username]
-        )
-      }
-      
-      return res.json({ message: 'Notification marked as unread' })
+      return res.status(400).json({ message: 'Cannot mark club-wide emails as unread' })
     }
     
     // Check if notification belongs to user
