@@ -24,7 +24,7 @@ export default function BrowseClubs() {
   const [status, setStatus] = useState("all"); // full, notFull, all
   const [orderBy, setOrderBy] = useState("membersAsc"); // nameAsc, nameDesc, membersDesc
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(8);
+  const [limit, setLimit] = useState(6);
 
   const mappedOrder = () => {
     switch (orderBy) {
@@ -108,8 +108,8 @@ export default function BrowseClubs() {
             }}>
               <option value="membersAsc">Members ↑</option>
               <option value="membersDesc">Members ↓</option>
-              <option value="nameAsc">Name ↑</option>
-              <option value="nameDesc">Name ↓</option>
+              <option value="nameAsc">Name a-z</option>
+              <option value="nameDesc">Name z-a</option>
             </select>
           </label>
           <label>
@@ -118,10 +118,10 @@ export default function BrowseClubs() {
               setLimit(Number(e.target.value))
               setCurrentPage(1)
             }}>
-              <option value={4}>4</option>
-              <option value={8}>8</option>
+              <option value={3}>3</option>
+              <option value={6}>6</option>
+              <option value={9}>9</option>
               <option value={12}>12</option>
-              <option value={16}>16</option>
             </select>
           </label>
         </div>
@@ -134,6 +134,7 @@ export default function BrowseClubs() {
         {clubs.map((club) => {
           const isMyClub = session?.club === club.clubName;
           const alreadyInClub = session?.club && !isMyClub; // Has club (including pending)
+          const isSA = session?.role === 'SA';
           const bannerStyle = club.bannerImage 
             ? { backgroundImage: `url(${club.bannerImage})` }
             : { backgroundColor: club.bannerColor || '#38bdf8' };
@@ -147,7 +148,7 @@ export default function BrowseClubs() {
                 <ProgressBar percentage={(club.memberCount / club.memberMax) * 100} />
                 <div className="club-actions">
                   <Link className="btn" to={`/ClubPage/${club.clubName}`}>View Club</Link>
-                  {!isMyClub && !alreadyInClub && club.memberCount < club.memberMax && (
+                  {!isSA && !isMyClub && !alreadyInClub && club.memberCount < club.memberMax && (
                     <button className="btn" onClick={async () => {
                       try {
                         await api.put(`/joinClubs/${club.clubName}`);

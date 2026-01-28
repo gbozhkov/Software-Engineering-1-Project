@@ -16,14 +16,16 @@ const Notifications = () => {
   const [filterOpen, setFilterOpen] = useState(false)
   
   const [emailFormOpen, setEmailFormOpen] = useState(false)
-  const [emailForm, setEmailForm] = useState({ recipient: "", message: "", sendToAllClub: false, type: "email", link: "", linkToClub: false })
+  const [emailForm, setEmailForm] = useState({ recipient: "", message: "", sendToAllClub: false, type: "email", link: "", linkToClub: false, targetClub: "" })
   const [recipientSearch, setRecipientSearch] = useState("")
   const [showSuggestions, setShowSuggestions] = useState(false)
   
   const [replyForm, setReplyForm] = useState({ notificationid: null, message: "" })
   const [showReplies, setShowReplies] = useState({})
 
-  const isAdmin = useMemo(() => ['CL', 'VP'].includes(session?.role), [session?.role])
+  // SA has all admin powers
+  const isSA = useMemo(() => session?.role === 'SA', [session?.role])
+  const isAdmin = useMemo(() => isSA || ['CL', 'VP'].includes(session?.role), [session?.role, isSA])
 
   // 1. Fetch Notifications
   const { data: notificationsData, isLoading: loadingNotifications } = useQuery({
@@ -59,12 +61,20 @@ const Notifications = () => {
     staleTime: 1000 * 60 // Cache for 1 minute
   })
 
+  // 3. Fetch Clubs (for SA to select which club to send to)
+  const { data: clubsList = [] } = useQuery({
+    queryKey: ['clubs-list'],
+    queryFn: () => api.get("/clubs").then(res => res.data),
+    enabled: isSA,
+    staleTime: 1000 * 60 * 5 // Cache for 5 minutes
+  })
+
   // Mutations
   const sendEmailMutation = useMutation({
     mutationFn: (data) => api.post("/sendEmail", data),
     onSuccess: () => {
         alert(emailForm.sendToAllClub ? "Email sent to all club members!" : "Email sent successfully!")
-        setEmailForm({ recipient: "", message: "", sendToAllClub: false, type: "email", link: "", linkToClub: false })
+        setEmailForm({ recipient: "", message: "", sendToAllClub: false, type: "email", link: "", linkToClub: false, targetClub: "" })
         setRecipientSearch("")
         setEmailFormOpen(false)
         queryClient.invalidateQueries(['notifications'])
@@ -111,17 +121,22 @@ const Notifications = () => {
     if (!emailForm.message) return alert("Message is required")
     if (!emailForm.sendToAllClub && !emailForm.recipient) return alert("Please select a recipient or choose to send to all club members")
     
+    // SA must select a target club when sending to all
+    if (emailForm.sendToAllClub && isSA && !emailForm.targetClub) return alert("Please select a club to send to")
+    
     // Prepare the data to send
     const emailData = {
       recipient: emailForm.recipient,
       message: emailForm.message,
       sendToAllClub: emailForm.sendToAllClub,
-      type: emailForm.type
+      type: emailForm.type,
+      targetClub: emailForm.targetClub // For SA to specify which club
     }
     
     // Add link if provided or if linking to club
-    if (emailForm.linkToClub && session?.club) {
-      emailData.link = `/ClubPage/${encodeURIComponent(session.club)}`
+    const linkClub = isSA && emailForm.targetClub ? emailForm.targetClub : session?.club
+    if (emailForm.linkToClub && linkClub) {
+      emailData.link = `/ClubPage/${encodeURIComponent(linkClub)}`
     } else if (emailForm.link) {
       emailData.link = emailForm.link
     }
@@ -183,6 +198,23 @@ const Notifications = () => {
                   <option value="email">Email</option>
                   <option value="event">Event</option>
                   <option value="membership">Membership</option>
+                </select>
+              </div>
+            )}
+            
+            {/* SA needs to select which club to send to */}
+            {isSA && emailForm.sendToAllClub && (
+              <div>
+                <label>Target Club:</label>
+                <select
+                  value={emailForm.targetClub}
+                  onChange={(e) => setEmailForm({ ...emailForm, targetClub: e.target.value })}
+                  required
+                >
+                  <option value="">Select a club...</option>
+                  {clubsList.map(club => (
+                    <option key={club.clubName} value={club.clubName}>{club.clubName}</option>
+                  ))}
                 </select>
               </div>
             )}
@@ -442,7 +474,7 @@ const Notifications = () => {
                   Reply
                 </button>
               )}
-              {n.username && hasReceivedMessagesInConversation && (
+              {((n.username && hasReceivedMessagesInConversation) || (isClubWide && !isSent)) && (
                 hasUnreadForUser ? (
                   <button className="btn btn-sm" onClick={() => markReadMutation.mutate({ id: n.notificationid, read: true })}>Mark read</button>
                 ) : (

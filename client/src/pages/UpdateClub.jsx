@@ -19,7 +19,9 @@ const UpdateClub = () => {
         bannerColor: undefined
     })
 
-    const isLeader = session?.role === 'CL' && session?.club === clubName
+    // SA has full powers for any club, CL only for their own
+    const isSA = session?.role === 'SA'
+    const isLeader = isSA || (session?.role === 'CL' && session?.club === clubName)
 
     // Fetch existing club data
     const { data: clubData, isLoading } = useQuery({

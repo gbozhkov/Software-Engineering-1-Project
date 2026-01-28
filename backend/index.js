@@ -87,6 +87,27 @@ const recalcMemberCount = async clubName => {
   )
 }
 
+// Helper to check if user is System Administrator
+const isSA = (user) => user?.role === 'SA'
+
+// Helper to check if user can perform CL actions on a specific club
+const canActAsCL = (user, clubName) => {
+  if (isSA(user)) return true
+  return user?.role === 'CL' && user?.club === clubName
+}
+
+// Helper to check if user can perform admin (CL/VP) actions on a specific club  
+const canActAsAdmin = (user, clubName) => {
+  if (isSA(user)) return true
+  return ['CL', 'VP'].includes(user?.role) && user?.club === clubName
+}
+
+// Helper to check if user is member of a club
+const canActAsMember = (user, clubName) => {
+  if (isSA(user)) return true
+  return ['CL', 'VP', 'CM'].includes(user?.role) && user?.club === clubName
+}
+
 const createNotification = async ({ username, senderUsername = null, clubName, type = 'info', message, link = null, replyTo = null }) => {
   if (!username || !message) return
   await dbp.query(
@@ -187,9 +208,9 @@ app.get('/events/:clubName', requireAuth, async (req, res) => {
   const like = `%${search}%`
 
   try {
-    // Only CL can see unaccepted events
-    const isClubLeader = req.user.role === 'CL' && req.user.club === clubName
-    const acceptedFilter = isClubLeader ? '' : ' AND accepted = 1'
+    // Only CL or SA can see unaccepted events
+    const canSeeUnaccepted = canActAsCL(req.user, clubName)
+    const acceptedFilter = canSeeUnaccepted ? '' : ' AND accepted = 1'
     
     const [rows] = await dbp.query(
       `SELECT * FROM events WHERE clubName = ? AND (title LIKE ? OR description LIKE ?)${acceptedFilter} ORDER BY ${orderKey} ${direction} LIMIT ? OFFSET ?`,
@@ -401,11 +422,19 @@ app.get('/session', requireAuth, async (req, res) => {
 })
 
 // Create a new club
-app.post('/createClub', requireAuth, requireRoles('STU'), async (req, res) => {
-  const { clubName, description, memberMax, bannerImage, bannerColor } = req.body
+app.post('/createClub', requireAuth, requireRoles('STU', 'SA'), async (req, res) => {
+  const { clubName, description, memberMax, bannerImage, bannerColor, initialLeader } = req.body
   console.log(`POST /createClub - User: ${req.user?.username}, Club: ${clubName}`)
   if (!clubName || !description || !memberMax) return res.status(400).json({ message: 'Missing club fields' })
-  if (req.user.club) return res.status(400).json({ message: 'You must not be enrolled in any club to create a new one' })
+  
+  // SA can create clubs without being in one, but must specify initial leader
+  if (isSA(req.user)) {
+    if (!initialLeader) return res.status(400).json({ message: 'SA must specify an initial leader for the club' })
+  } else {
+    // STU must not be in a club
+    if (req.user.club) return res.status(400).json({ message: 'You must not be enrolled in any club to create a new one' })
+  }
+  
   const maxMembers = Number(memberMax)
   if (Number.isNaN(maxMembers) || maxMembers < 1) return res.status(400).json({ message: 'memberMax must be a positive number' })
 
@@ -413,13 +442,34 @@ app.post('/createClub', requireAuth, requireRoles('STU'), async (req, res) => {
     const [exists] = await dbp.query('SELECT 1 FROM clubs WHERE clubName = ?', [clubName])
     if (exists.length > 0) return res.status(400).json({ message: 'Club already exists' })
 
-    await dbp.query(
-      'INSERT INTO clubs (clubName, description, memberCount, memberMax, bannerImage, bannerColor) VALUES (?, ?, ?, ?, ?, ?)',
-      [clubName, description, 1, maxMembers, bannerImage || '', bannerColor || '#38bdf8']
-    )
-    await dbp.query('UPDATE person SET role = ?, club = ? WHERE username = ?', ['CL', clubName, req.user.username])
+    if (isSA(req.user)) {
+      // SA creates club - verify initial leader is valid (has no club, not SA)
+      const [leaderRows] = await dbp.query(
+        "SELECT username, role, club FROM person WHERE username = ?",
+        [initialLeader]
+      )
+      if (leaderRows.length === 0) return res.status(404).json({ message: 'Initial leader not found' })
+      if (leaderRows[0].role === 'SA') return res.status(400).json({ message: 'Cannot assign SA as club leader' })
+      if (leaderRows[0].club) return res.status(400).json({ message: 'Initial leader is already in a club' })
+      
+      // Create club with memberCount=1 and assign leader
+      await dbp.query(
+        'INSERT INTO clubs (clubName, description, memberCount, memberMax, bannerImage, bannerColor) VALUES (?, ?, ?, ?, ?, ?)',
+        [clubName, description, 1, maxMembers, bannerImage || '', bannerColor || '#38bdf8']
+      )
+      await dbp.query('UPDATE person SET role = ?, club = ? WHERE username = ?', ['CL', clubName, initialLeader])
+      
+      return res.status(201).json({ message: 'Club created successfully with leader: ' + initialLeader })
+    } else {
+      // STU creates club and becomes CL
+      await dbp.query(
+        'INSERT INTO clubs (clubName, description, memberCount, memberMax, bannerImage, bannerColor) VALUES (?, ?, ?, ?, ?, ?)',
+        [clubName, description, 1, maxMembers, bannerImage || '', bannerColor || '#38bdf8']
+      )
+      await dbp.query('UPDATE person SET role = ?, club = ? WHERE username = ?', ['CL', clubName, req.user.username])
 
-    return res.status(201).json({ message: 'Club added successfully', sessionUpdate: { role: 'CL', club: clubName } })
+      return res.status(201).json({ message: 'Club added successfully', sessionUpdate: { role: 'CL', club: clubName } })
+    }
   } catch (err) {
     console.error('Create club failed', err)
     return res.status(500).json({ message: 'Failed to create club' })
@@ -444,11 +494,109 @@ app.post('/comment', requireAuth, async (req, res) => {
   }
 })
 
+// Get event comments with optional search/order/pagination (requires club membership)
+app.get('/eventComments/:eventid', requireAuth, async (req, res) => {
+  const eventid = parseInt(req.params.eventid)
+  console.log(`GET /eventComments/${eventid} - User: ${req.user?.username}`)
+  
+  const { search, orderKey, direction, limit, page, offset } = buildPagination(
+    req.query,
+    { date: 'date', username: 'username' },
+    'date'
+  )
+  const like = `%${search}%`
+
+  try {
+    // Check if user is a member of the club that owns this event
+    const [[event]] = await dbp.query('SELECT clubName FROM events WHERE eventid = ?', [eventid])
+    if (!event) return res.status(404).json({ message: 'Event not found' })
+    
+    // Allow access if user is a member of the club (CL, VP, CM) or SA
+    const isMember = canActAsMember(req.user, event.clubName)
+    if (!isMember) return res.status(403).json({ message: 'You must be a member of this club to view event comments' })
+
+    const [rows] = await dbp.query(
+      `SELECT * FROM comments WHERE eventid = ? AND (comment LIKE ? OR username LIKE ?) ORDER BY ${orderKey} ${direction} LIMIT ? OFFSET ?`,
+      [eventid, like, like, limit, offset]
+    )
+    const [[{ total }]] = await dbp.query(
+      'SELECT COUNT(*) AS total FROM comments WHERE eventid = ? AND (comment LIKE ? OR username LIKE ?)',
+      [eventid, like, like]
+    )
+
+    if (req.query.page || req.query.limit || req.query.q || req.query.orderBy || req.query.order) {
+      return res.json({
+        data: rows,
+        page,
+        pages: Math.ceil(total / limit) || 1,
+        total
+      })
+    }
+
+    return res.json(rows)
+  } catch (err) {
+    console.error('Error fetching event comments', err)
+    return res.status(500).json({ message: 'Failed to fetch event comments' })
+  }
+})
+
+// Create a new event comment (requires club membership)
+app.post('/eventComment', requireAuth, async (req, res) => {
+  const { comment, eventid } = req.body
+  console.log(`POST /eventComment - User: ${req.user?.username}, Event: ${eventid}`)
+  if (!comment || !eventid) return res.status(400).json({ message: 'Comment and eventid are required' })
+
+  try {
+    // Check if user is a member of the club that owns this event
+    const [[event]] = await dbp.query('SELECT clubName FROM events WHERE eventid = ?', [eventid])
+    if (!event) return res.status(404).json({ message: 'Event not found' })
+    
+    const isMember = canActAsMember(req.user, event.clubName)
+    if (!isMember) return res.status(403).json({ message: 'You must be a member of this club to comment on events' })
+
+    await dbp.query(
+      'INSERT INTO comments (date, comment, rating, username, eventid) VALUES (NOW(), ?, 0, ?, ?)',
+      [comment, req.user.username, eventid]
+    )
+    return res.json({ message: 'Event comment added successfully' })
+  } catch (err) {
+    console.error('Add event comment failed', err)
+    return res.status(500).json({ message: 'Failed to add event comment' })
+  }
+})
+
+// Delete an event comment (author or club admin)
+app.delete('/eventComment/:commentid', requireAuth, async (req, res) => {
+  const commentid = parseInt(req.params.commentid)
+  console.log(`DELETE /eventComment/${commentid} - User: ${req.user?.username}`)
+  
+  try {
+    const [[comment]] = await dbp.query('SELECT username, eventid FROM comments WHERE commentid = ? AND eventid IS NOT NULL', [commentid])
+    if (!comment) return res.status(404).json({ message: 'Event comment not found' })
+    
+    // Check if user is comment author or club admin or SA
+    const [[event]] = await dbp.query('SELECT clubName FROM events WHERE eventid = ?', [comment.eventid])
+    const isAdmin = canActAsAdmin(req.user, event.clubName)
+    const isAuthor = comment.username === req.user.username
+    
+    if (!isAdmin && !isAuthor) return res.status(403).json({ message: 'Not authorized to delete this comment' })
+
+    await dbp.query('DELETE FROM comments WHERE commentid = ?', [commentid])
+    return res.json({ message: 'Event comment deleted successfully' })
+  } catch (err) {
+    console.error('Delete event comment failed', err)
+    return res.status(500).json({ message: 'Failed to delete event comment' })
+  }
+})
+
 // Create a new event
-app.post('/createEvent', requireAuth, requireRoles('CL', 'VP'), requireClubMatch(req => req.body.clubName), async (req, res) => {
+app.post('/createEvent', requireAuth, async (req, res) => {
   const { title, description, startDate, endDate, clubName } = req.body
   console.log(`POST /createEvent - User: ${req.user?.username}, Event: ${title}, Club: ${clubName}`)
   if (!title || !description || !startDate || !clubName) return res.status(400).json({ message: 'Missing event fields' })
+  
+  // Check if user can act as admin (CL/VP) for this club
+  if (!canActAsAdmin(req.user, clubName)) return forbidden(res)
 
   try {
     // Convert datetime-local format to MySQL datetime format
@@ -484,9 +632,13 @@ app.post('/createEvent', requireAuth, requireRoles('CL', 'VP'), requireClubMatch
 })
 
 // Delete a club by clubName and reset members
-app.delete('/clubs/:clubName', requireAuth, requireRoles('CL'), requireClubMatch(req => req.params.clubName), async (req, res) => {
+app.delete('/clubs/:clubName', requireAuth, async (req, res) => {
   const clubName = req.params.clubName
   console.log(`DELETE /clubs/${clubName} - User: ${req.user?.username}`)
+  
+  // Only CL of this club or SA can delete
+  if (!canActAsCL(req.user, clubName)) return forbidden(res)
+  
   try {
     await dbp.query("UPDATE person SET role = 'STU', club = NULL WHERE club = ?", [clubName])
     await dbp.query("DELETE FROM clubs WHERE clubName = ?", [clubName])
@@ -507,7 +659,7 @@ app.delete('/comment/:commentid', requireAuth, async (req, res) => {
     const comment = rows[0]
 
     const isOwner = comment.username === req.user.username
-    const isClubAdmin = ['CL', 'VP'].includes(req.user.role) && (!req.user.club || req.user.club === comment.clubName)
+    const isClubAdmin = canActAsAdmin(req.user, comment.clubName)
 
     if (!isOwner && !isClubAdmin) return forbidden(res)
 
@@ -520,13 +672,15 @@ app.delete('/comment/:commentid', requireAuth, async (req, res) => {
 })
 
 // Delete a event by eventId
-app.delete('/event/:eventid', requireAuth, requireRoles('CL', 'VP'), async (req, res) => {
+app.delete('/event/:eventid', requireAuth, async (req, res) => {
   const eventId = req.params.eventid
   console.log(`DELETE /event/${eventId} - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT clubName FROM events WHERE eventid = ?', [eventId])
     if (rows.length === 0) return res.status(404).json({ message: 'Event not found' })
-    if (req.user.club && req.user.club !== rows[0].clubName) return forbidden(res)
+    
+    // Check if user can act as admin for this club
+    if (!canActAsAdmin(req.user, rows[0].clubName)) return forbidden(res)
 
     await dbp.query("DELETE FROM events WHERE eventid = ?", [eventId])
     return res.json({ message: "Event deleted successfully" })
@@ -536,14 +690,16 @@ app.delete('/event/:eventid', requireAuth, requireRoles('CL', 'VP'), async (req,
   }
 })
 
-// Accept a event by eventId (CL only per user story)
-app.put('/event/:eventid', requireAuth, requireRoles('CL'), async (req, res) => {
+// Accept a event by eventId (CL or SA only per user story)
+app.put('/event/:eventid', requireAuth, async (req, res) => {
   const eventId = req.params.eventid
   console.log(`PUT /event/${eventId} - User: ${req.user?.username} - Accepting event`)
   try {
     const [rows] = await dbp.query('SELECT clubName, title FROM events WHERE eventid = ?', [eventId])
     if (rows.length === 0) return res.status(404).json({ message: 'Event not found' })
-    if (req.user.club && req.user.club !== rows[0].clubName) return forbidden(res)
+    
+    // Only CL of this club or SA can accept events
+    if (!canActAsCL(req.user, rows[0].clubName)) return forbidden(res)
     
     const clubName = rows[0].clubName
     const eventTitle = rows[0].title
@@ -572,11 +728,15 @@ app.put('/event/:eventid', requireAuth, requireRoles('CL'), async (req, res) => 
   }
 })
 
-// Update club details (only CL can change description and memberMax)
-app.post('/updateClub/:clubName', requireAuth, requireRoles('CL'), requireClubMatch(req => req.params.clubName), async (req, res) => {
+// Update club details (only CL or SA can change description and memberMax)
+app.post('/updateClub/:clubName', requireAuth, async (req, res) => {
   const clubName = req.params.clubName
   const { description, memberMax, bannerImage, bannerColor } = req.body
   console.log(`POST /updateClub/${clubName} - User: ${req.user?.username}`)
+  
+  // Only CL of this club or SA can update
+  if (!canActAsCL(req.user, clubName)) return forbidden(res)
+  
   if (!memberMax) return res.status(400).json({ message: 'Missing fields' })
   const maxMembers = Number(memberMax)
   if (Number.isNaN(maxMembers) || maxMembers < 1) return res.status(400).json({ message: 'memberMax must be positive' })
@@ -618,13 +778,15 @@ app.put('/joinClubs/:clubName', requireAuth, async (req, res) => {
   }
 })
 
-app.put('/expell/:username', requireAuth, requireRoles('CL', 'VP'), async (req, res) => {
+app.put('/expell/:username', requireAuth, async (req, res) => {
   const username = req.params.username
   console.log(`PUT /expell/${username} - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT club FROM person WHERE username = ?', [username])
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' })
-    if (req.user.club && req.user.club !== rows[0].club) return forbidden(res)
+    
+    // Check if user can act as admin for the target user's club
+    if (!canActAsAdmin(req.user, rows[0].club)) return forbidden(res)
 
     await dbp.query("UPDATE person SET club = NULL, role = 'STU' WHERE username = ?", [username])
     await recalcMemberCount(rows[0].club)
@@ -636,13 +798,15 @@ app.put('/expell/:username', requireAuth, requireRoles('CL', 'VP'), async (req, 
   }
 })
 
-app.put('/accept/:username', requireAuth, requireRoles('CL', 'VP'), async (req, res) => {
+app.put('/accept/:username', requireAuth, async (req, res) => {
   const username = req.params.username
   console.log(`PUT /accept/${username} - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT club FROM person WHERE username = ?', [username])
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' })
-    if (req.user.club && req.user.club !== rows[0].club) return forbidden(res)
+    
+    // Check if user can act as admin for the target user's club
+    if (!canActAsAdmin(req.user, rows[0].club)) return forbidden(res)
 
     const [clubRows] = await dbp.query('SELECT memberCount, memberMax FROM clubs WHERE clubName = ?', [rows[0].club])
     if (clubRows.length && clubRows[0].memberCount >= clubRows[0].memberMax) return res.status(400).json({ message: 'Club is full' })
@@ -657,13 +821,15 @@ app.put('/accept/:username', requireAuth, requireRoles('CL', 'VP'), async (req, 
   }
 })
 
-app.put('/reject/:username', requireAuth, requireRoles('CL', 'VP'), async (req, res) => {
+app.put('/reject/:username', requireAuth, async (req, res) => {
   const username = req.params.username
   console.log(`PUT /reject/${username} - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT club FROM person WHERE username = ?', [username])
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' })
-    if (req.user.club && req.user.club !== rows[0].club) return forbidden(res)
+    
+    // Check if user can act as admin for the target user's club
+    if (!canActAsAdmin(req.user, rows[0].club)) return forbidden(res)
 
     await dbp.query("UPDATE person SET club = NULL WHERE username = ?", [username])
     await recalcMemberCount(rows[0].club)
@@ -721,14 +887,16 @@ app.delete('/quitClub', requireAuth, async (req, res) => {
 })
 
 // Promote a member to VP or demote VP to CM by username
-app.put('/promote/:username', requireAuth, requireRoles('CL'), async (req, res) => {
+app.put('/promote/:username', requireAuth, async (req, res) => {
   const username = req.params.username
   const { action } = req.body // 'promote' or 'demote'
   console.log(`PUT /promote/${username} - User: ${req.user?.username}, Action: ${action}`)
   try {
     const [rows] = await dbp.query('SELECT club, role FROM person WHERE username = ?', [username])
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' })
-    if (req.user.club && req.user.club !== rows[0].club) return forbidden(res)
+    
+    // Only CL of this club or SA can promote/demote
+    if (!canActAsCL(req.user, rows[0].club)) return forbidden(res)
 
     let newRole, message
     if (action === 'demote' && rows[0].role === 'VP') {
@@ -749,14 +917,44 @@ app.put('/promote/:username', requireAuth, requireRoles('CL'), async (req, res) 
   }
 })
 
-// Transfer club leadership (CL only)
-app.put('/transferLeadership/:username', requireAuth, requireRoles('CL'), async (req, res) => {
+// Transfer club leadership (CL or SA only)
+app.put('/transferLeadership/:username', requireAuth, async (req, res) => {
   const newLeaderUsername = req.params.username
   console.log(`PUT /transferLeadership/${newLeaderUsername} - User: ${req.user?.username}`)
   try {
     const [rows] = await dbp.query('SELECT club, role FROM person WHERE username = ?', [newLeaderUsername])
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' })
-    if (!req.user.club || req.user.club !== rows[0].club) return res.status(400).json({ message: 'User must be in your club' })
+    
+    const targetClub = rows[0].club
+    
+    // SA can transfer leadership for any club, CL only for their own club
+    if (isSA(req.user)) {
+      // SA is transferring - they don't become VP
+      if (!['CM', 'VP'].includes(rows[0].role)) return res.status(400).json({ message: 'User must be a club member (CM or VP)' })
+      if (!targetClub) return res.status(400).json({ message: 'User must be in a club' })
+      
+      // Get current CL of the target club
+      const [[currentCL]] = await dbp.query("SELECT username FROM person WHERE club = ? AND role = 'CL'", [targetClub])
+      
+      // Transfer leadership: new leader becomes CL, old leader becomes VP
+      await dbp.query("UPDATE person SET role = 'CL' WHERE username = ?", [newLeaderUsername])
+      if (currentCL) {
+        await dbp.query("UPDATE person SET role = 'VP' WHERE username = ?", [currentCL.username])
+      }
+      
+      await createNotification({ 
+        username: newLeaderUsername, 
+        clubName: targetClub, 
+        type: 'membership', 
+        message: `You are now the Club Leader of ${targetClub}` 
+      })
+      
+      return res.json({ message: 'Leadership transferred successfully' })
+    }
+    
+    // Regular CL transfer
+    if (req.user.role !== 'CL') return forbidden(res)
+    if (!req.user.club || req.user.club !== targetClub) return res.status(400).json({ message: 'User must be in your club' })
     if (!['CM', 'VP'].includes(rows[0].role)) return res.status(400).json({ message: 'User must be a club member (CM or VP)' })
     if (newLeaderUsername === req.user.username) return res.status(400).json({ message: 'Cannot transfer leadership to yourself' })
 
@@ -793,6 +991,11 @@ app.get('/notifications', requireAuth, async (req, res) => {
   )
   const like = `%${search}%`
   const unreadFilter = req.query.unread === 'true' ? ' AND isRead = 0' : ''
+  // For mixed mailboxes (all/inbox), need different filter to handle club-wide notifications
+  // For club-wide: check notification_reads.readAt IS NULL (unread) or readAt IS NOT NULL (read)
+  const mixedUnreadFilter = req.query.unread === 'true' 
+    ? ' AND ((n.username IS NOT NULL AND n.isRead = 0) OR (n.username IS NULL AND nr_check.readAt IS NULL))' 
+    : ''
   const mailbox = req.query.mailbox || 'inbox'
   
   try {
@@ -857,38 +1060,49 @@ app.get('/notifications', requireAuth, async (req, res) => {
       rows = sentRows
       total = sentTotal
     } else if (mailbox === 'club') {
-      // Show club-wide emails from user's club (not sent by user)
+      // Show club-wide emails that user was a recipient of (based on notification_reads)
+      // readAt IS NULL = unread, readAt IS NOT NULL = read
+      const clubUnreadFilter = req.query.unread === 'true' ? ' AND nr.readAt IS NULL' : ''
       const [clubRows] = await dbp.query(
-        `SELECT n.*, 1 as recipientCount FROM notifications n
+        `SELECT n.*, 1 as recipientCount, (nr.readAt IS NOT NULL) as isReadByUser
+         FROM notifications n
+         INNER JOIN notification_reads nr ON nr.notificationid = n.notificationid AND nr.username = ?
          WHERE n.replyTo IS NULL
-           AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
+           AND (n.message LIKE ? OR n.type LIKE ?)${clubUnreadFilter}
            AND n.username IS NULL
-           AND n.clubName = ?
          ORDER BY n.${orderKey} ${direction} LIMIT ? OFFSET ?`,
-        [like, like, req.user.club, limit, offset]
+        [req.user.username, like, like, limit, offset]
       )
       const [[{ total: clubTotal }]] = await dbp.query(
-        `SELECT COUNT(*) AS total FROM notifications n
+        `SELECT COUNT(*) AS total 
+         FROM notifications n
+         INNER JOIN notification_reads nr ON nr.notificationid = n.notificationid AND nr.username = ?
          WHERE n.replyTo IS NULL
-           AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
-           AND n.username IS NULL
-           AND n.clubName = ?`,
-        [like, like, req.user.club]
+           AND (n.message LIKE ? OR n.type LIKE ?)${clubUnreadFilter}
+           AND n.username IS NULL`,
+        [req.user.username, like, like]
       )
-      rows = clubRows
+      // Map isReadByUser to isRead for consistency with frontend
+      rows = clubRows.map(row => ({ ...row, isRead: row.isReadByUser ? 1 : 0 }))
       total = clubTotal
     } else if (mailbox === 'all') {
       // Show both inbox and sent - all messages user is involved in
+      // For club-wide: check notification_reads table (readAt IS NULL = unread)
+      const allParams = req.query.unread === 'true' 
+        ? [req.user.username, req.user.username, like, like, req.user.username, req.user.username, req.user.username, req.user.username, req.user.username]
+        : [req.user.username, like, like, req.user.username, req.user.username, req.user.username, req.user.username, req.user.username]
       const [allRows] = await dbp.query(
         `SELECT DISTINCT n.*, 1 as recipientCount,
-                COALESCE((SELECT MAX(r.createdAt) FROM notifications r WHERE r.replyTo = n.notificationid), n.createdAt) as lastReplyTime
+                COALESCE((SELECT MAX(r.createdAt) FROM notifications r WHERE r.replyTo = n.notificationid), n.createdAt) as lastReplyTime,
+                CASE WHEN n.username IS NULL THEN (SELECT nr.readAt IS NOT NULL FROM notification_reads nr WHERE nr.notificationid = n.notificationid AND nr.username = ?) ELSE n.isRead END as isReadByUser
          FROM notifications n
+         LEFT JOIN notification_reads nr_check ON n.username IS NULL AND nr_check.notificationid = n.notificationid AND nr_check.username = ?
          WHERE n.replyTo IS NULL
-           AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
+           AND (n.message LIKE ? OR n.type LIKE ?)${mixedUnreadFilter}
            AND (
              n.username = ? 
              OR n.senderUsername = ?
-             OR (n.username IS NULL AND n.clubName = ? AND n.senderUsername != ?)
+             OR (n.username IS NULL AND nr_check.username IS NOT NULL)
              OR EXISTS(
                SELECT 1 FROM notifications r 
                WHERE r.replyTo = n.notificationid 
@@ -896,44 +1110,55 @@ app.get('/notifications', requireAuth, async (req, res) => {
              )
            )
          ORDER BY lastReplyTime ${direction}`,
-        [like, like, req.user.username, req.user.username, req.user.club, req.user.username, req.user.username, req.user.username]
+        allParams
       )
-      rows = allRows.slice(offset, offset + limit)
+      rows = allRows.slice(offset, offset + limit).map(row => ({ ...row, isRead: row.isReadByUser ? 1 : 0 }))
       total = allRows.length
     } else {
-      // Default: inbox - all received person-to-person messages + conversations with at least one received message + club-wide emails not sent by user
+      // Default: inbox - all received person-to-person messages + conversations with at least one received message + club-wide emails user received
+      // For club-wide: check notification_reads table (readAt IS NULL = unread)
+      const inboxParams = req.query.unread === 'true' 
+        ? [req.user.username, req.user.username, req.user.username, like, like, req.user.username, req.user.username, req.user.username, limit, offset]
+        : [req.user.username, req.user.username, like, like, req.user.username, req.user.username, limit, offset]
       const [inboxRows] = await dbp.query(
         `SELECT DISTINCT n.*, 1 as recipientCount,
-                COALESCE((SELECT MAX(r.createdAt) FROM notifications r WHERE r.replyTo = n.notificationid), n.createdAt) as lastReplyTime
+                COALESCE((SELECT MAX(r.createdAt) FROM notifications r WHERE r.replyTo = n.notificationid), n.createdAt) as lastReplyTime,
+                CASE WHEN n.username IS NULL THEN (SELECT nr.readAt IS NOT NULL FROM notification_reads nr WHERE nr.notificationid = n.notificationid AND nr.username = ?) ELSE n.isRead END as isReadByUser
          FROM notifications n
+         LEFT JOIN notification_reads nr_check ON n.username IS NULL AND nr_check.notificationid = n.notificationid AND nr_check.username = ?
          WHERE n.replyTo IS NULL
-           AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
+           AND (n.message LIKE ? OR n.type LIKE ?)${mixedUnreadFilter}
            AND (
              n.username = ? 
              OR EXISTS(
                SELECT 1 FROM notifications r 
                WHERE r.replyTo = n.notificationid AND r.username = ?
              )
-             OR (n.username IS NULL AND n.clubName = ? AND n.senderUsername != ?)
+             OR (n.username IS NULL AND nr_check.username IS NOT NULL)
            )
          ORDER BY ${orderKey === 'created' ? 'lastReplyTime' : 'n.' + orderKey} ${direction} LIMIT ? OFFSET ?`,
-        [like, like, req.user.username, req.user.username, req.user.club, req.user.username, limit, offset]
+        inboxParams
       )
+      const inboxCountParams = req.query.unread === 'true' 
+        ? [req.user.username, req.user.username, like, like, req.user.username, req.user.username, req.user.username]
+        : [req.user.username, like, like, req.user.username, req.user.username, req.user.username]
       const [[{ total: inboxTotal }]] = await dbp.query(
-        `SELECT COUNT(DISTINCT n.notificationid) AS total FROM notifications n
+        `SELECT COUNT(DISTINCT n.notificationid) AS total 
+         FROM notifications n
+         LEFT JOIN notification_reads nr_check ON n.username IS NULL AND nr_check.notificationid = n.notificationid AND nr_check.username = ?
          WHERE n.replyTo IS NULL
-           AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
+           AND (n.message LIKE ? OR n.type LIKE ?)${mixedUnreadFilter}
            AND (
              n.username = ? 
              OR EXISTS(
                SELECT 1 FROM notifications r 
                WHERE r.replyTo = n.notificationid AND r.username = ?
              )
-             OR (n.username IS NULL AND n.clubName = ? AND n.senderUsername != ?)
+             OR (n.username IS NULL AND nr_check.username IS NOT NULL)
            )`,
-        [like, like, req.user.username, req.user.username, req.user.club, req.user.username]
+        inboxCountParams
       )
-      rows = inboxRows
+      rows = inboxRows.map(row => ({ ...row, isRead: row.isReadByUser ? 1 : 0 }))
       total = inboxTotal
     }
     
@@ -969,25 +1194,41 @@ app.get('/notifications', requireAuth, async (req, res) => {
 app.get('/notifications/unreadCount', requireAuth, async (req, res) => {
   console.log(`GET /notifications/unreadCount - User: ${req.user?.username}`)
   try {
-    // Count conversations as 1: count distinct parent IDs where user has unread messages
-    const [[{ total }]] = await dbp.query(
-      `SELECT COUNT(DISTINCT COALESCE(replyTo, notificationid)) AS total 
+    // Count individual notifications that are unread
+    const [[{ individualCount }]] = await dbp.query(
+      `SELECT COUNT(DISTINCT COALESCE(replyTo, notificationid)) AS individualCount 
        FROM notifications 
        WHERE username = ? AND isRead = 0`,
       [req.user.username]
     )
-    return res.json({ total })
+    
+    // Count club-wide notifications that user received but hasn't read (readAt IS NULL)
+    const [[{ clubCount }]] = await dbp.query(
+      `SELECT COUNT(*) AS clubCount 
+       FROM notification_reads nr
+       INNER JOIN notifications n ON n.notificationid = nr.notificationid
+       WHERE nr.username = ? 
+         AND nr.readAt IS NULL
+         AND n.username IS NULL`,
+      [req.user.username]
+    )
+    
+    return res.json({ total: individualCount + clubCount })
   } catch (err) {
     console.error('Fetch unread count failed', err)
     return res.status(500).json({ message: 'Failed to fetch unread count' })
   }
 })
 
-app.post('/notifications', requireAuth, requireRoles('CL', 'VP'), async (req, res) => {
+app.post('/notifications', requireAuth, async (req, res) => {
   const { username, clubName, type, message, link } = req.body
   console.log(`POST /notifications - User: ${req.user?.username}, To: ${username}`)
   if (!username || !message) return res.status(400).json({ message: 'Username and message required' })
-  if (clubName && req.user.club && req.user.club !== clubName) return forbidden(res)
+  
+  // SA can send to any club, CL/VP only to their own club
+  if (!isSA(req.user) && !['CL', 'VP'].includes(req.user.role)) return forbidden(res)
+  if (!isSA(req.user) && clubName && req.user.club && req.user.club !== clubName) return forbidden(res)
+  
   try {
     await createNotification({ username, clubName, type, message, link })
     return res.status(201).json({ message: 'Notification sent' })
@@ -1063,18 +1304,38 @@ app.post('/sendEmail', requireAuth, async (req, res) => {
   const notificationType = type && ['event', 'membership', 'email'].includes(type) ? type : 'email'
   
   try {
-    // Check if user is CL/VP for sending to all club members
+    // Check if user is CL/VP or SA for sending to all club members
     if (sendToAllClub) {
-      if (!['CL', 'VP'].includes(req.user.role) || !req.user.club) {
-        return res.status(403).json({ message: 'Only Club Leaders and Vice Presidents can send to all members' })
+      // SA can send to any club (but need to specify which one), CL/VP to their own
+      const targetClub = req.body.targetClub || req.user.club
+      if (!isSA(req.user) && (!['CL', 'VP'].includes(req.user.role) || !req.user.club)) {
+        return res.status(403).json({ message: 'Only Club Leaders, Vice Presidents, and System Administrators can send to all members' })
+      }
+      if (!targetClub) {
+        return res.status(400).json({ message: 'Target club required for sending to all members' })
       }
       
       // Create single club-wide notification with username=NULL
-      await dbp.query(
+      const [result] = await dbp.query(
         `INSERT INTO notifications (username, senderUsername, clubName, type, message, link, isRead, createdAt) 
          VALUES (NULL, ?, ?, ?, ?, ?, 1, NOW())`,
-        [req.user.username, req.user.club, notificationType, message, link || null]
+        [req.user.username, targetClub, notificationType, message, link || null]
       )
+      const notificationId = result.insertId
+      
+      // Insert rows into notification_reads for all current club members (except sender)
+      // readAt = NULL means unread
+      const [members] = await dbp.query(
+        "SELECT username FROM person WHERE club = ? AND role IN ('CL', 'VP', 'CM') AND username != ?",
+        [targetClub, req.user.username]
+      )
+      if (members.length > 0) {
+        const values = members.map(m => [notificationId, m.username, null])
+        await dbp.query(
+          'INSERT INTO notification_reads (notificationid, username, readAt) VALUES ?',
+          [values]
+        )
+      }
       
       return res.status(201).json({ message: `Email sent to all club members` })
     } else {
@@ -1100,13 +1361,19 @@ app.post('/sendEmail', requireAuth, async (req, res) => {
   }
 })
 
-app.get('/clubMembers', requireAuth, requireRoles('CL', 'VP', 'CM'), async (req, res) => {
+app.get('/clubMembers', requireAuth, async (req, res) => {
   console.log(`GET /clubMembers - User: ${req.user?.username}`)
   try {
-    if (!req.user.club) return res.status(400).json({ message: 'You are not part of a club' })
+    // SA can see members of any club (via query param), others see their own club
+    const targetClub = req.query.club || req.user.club
+    
+    if (!isSA(req.user) && !['CL', 'VP', 'CM'].includes(req.user.role)) return forbidden(res)
+    if (!isSA(req.user) && !req.user.club) return res.status(400).json({ message: 'You are not part of a club' })
+    if (!targetClub) return res.status(400).json({ message: 'Club not specified' })
+    
     const [members] = await dbp.query(
       "SELECT username, role FROM person WHERE club = ? AND role IN ('CL', 'VP', 'CM') ORDER BY role, username",
-      [req.user.club]
+      [targetClub]
     )
     return res.json(members)
   } catch (err) {
@@ -1131,6 +1398,25 @@ app.get('/allUsers', requireAuth, async (req, res) => {
   }
 })
 
+// Get users available to become club leaders (no club, not SA) - SA only
+app.get('/availableLeaders', requireAuth, async (req, res) => {
+  console.log(`GET /availableLeaders - User: ${req.user?.username}, Search: ${req.query.q || ''}`)
+  if (!isSA(req.user)) return forbidden(res)
+  
+  try {
+    const search = req.query.q || ''
+    const like = `%${search}%`
+    const [users] = await dbp.query(
+      "SELECT username, role FROM person WHERE username LIKE ? AND club IS NULL AND role != 'SA' ORDER BY username LIMIT 20",
+      [like]
+    )
+    return res.json(users)
+  } catch (err) {
+    console.error('Fetch available leaders failed', err)
+    return res.status(500).json({ message: 'Failed to fetch available leaders' })
+  }
+})
+
 app.put('/notifications/:id/read', requireAuth, async (req, res) => {
   const id = req.params.id
   console.log(`PUT /notifications/${id}/read - User: ${req.user?.username}`)
@@ -1138,9 +1424,22 @@ app.put('/notifications/:id/read', requireAuth, async (req, res) => {
     const [[notification]] = await dbp.query('SELECT * FROM notifications WHERE notificationid = ?', [id])
     if (!notification) return res.status(404).json({ message: 'Notification not found' })
     
-    // Block marking club-wide emails as read (username=NULL)
+    // Handle club-wide notifications (username=NULL)
     if (notification.username === null) {
-      return res.status(400).json({ message: 'Cannot mark club-wide emails as read' })
+      // Check if user received this notification (exists in notification_reads)
+      const [[recipient]] = await dbp.query(
+        'SELECT * FROM notification_reads WHERE notificationid = ? AND username = ?',
+        [id, req.user.username]
+      )
+      if (!recipient) {
+        return res.status(403).json({ message: 'You did not receive this notification' })
+      }
+      // Set readAt to current timestamp
+      await dbp.query(
+        'UPDATE notification_reads SET readAt = NOW() WHERE notificationid = ? AND username = ?',
+        [id, req.user.username]
+      )
+      return res.json({ message: 'Club notification marked as read' })
     }
     
     // Check if notification belongs to user
@@ -1181,9 +1480,22 @@ app.put('/notifications/:id/unread', requireAuth, async (req, res) => {
     const [[notification]] = await dbp.query('SELECT * FROM notifications WHERE notificationid = ?', [id])
     if (!notification) return res.status(404).json({ message: 'Notification not found' })
     
-    // Block marking club-wide emails as unread (username=NULL)
+    // Handle club-wide notifications (username=NULL)
     if (notification.username === null) {
-      return res.status(400).json({ message: 'Cannot mark club-wide emails as unread' })
+      // Check if user received this notification (exists in notification_reads)
+      const [[recipient]] = await dbp.query(
+        'SELECT * FROM notification_reads WHERE notificationid = ? AND username = ?',
+        [id, req.user.username]
+      )
+      if (!recipient) {
+        return res.status(403).json({ message: 'You did not receive this notification' })
+      }
+      // Set readAt to NULL
+      await dbp.query(
+        'UPDATE notification_reads SET readAt = NULL WHERE notificationid = ? AND username = ?',
+        [id, req.user.username]
+      )
+      return res.json({ message: 'Club notification marked as unread' })
     }
     
     // Check if notification belongs to user

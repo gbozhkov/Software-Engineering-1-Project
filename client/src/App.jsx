@@ -26,6 +26,16 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   const [session, setSession] = useState(getSession())
   const [unread, setUnread] = useState(0)
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('sca_darkMode')
+    return saved ? JSON.parse(saved) : false
+  })
+
+  // Apply dark mode class to document
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode)
+    localStorage.setItem('sca_darkMode', JSON.stringify(darkMode))
+  }, [darkMode])
 
   useEffect(() => {
     const sync = async () => {
@@ -94,13 +104,15 @@ function App() {
           session={session} 
           unread={unread} 
           handleLogout={handleLogout}
+          darkMode={darkMode}
+          setDarkMode={setDarkMode}
         />
       </BrowserRouter>
     </div>
   )
 }
 
-function AppContent({ session, unread, handleLogout }) {
+function AppContent({ session, unread, handleLogout, darkMode, setDarkMode }) {
   const location = useLocation()
   const isAuthPage = ['/LogIn','/SignUp'].includes(location.pathname)
 
@@ -109,13 +121,23 @@ function AppContent({ session, unread, handleLogout }) {
       {!isAuthPage && (
         <header className="top-nav">
           <div className="brand">School Club Activity</div>
+          <button 
+            className="theme-toggle" 
+            onClick={() => setDarkMode(!darkMode)}
+            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {darkMode ? '☀️' : '🌙'}
+          </button>
           <nav>
             <Link to="/">Home</Link>
             <Link to="/notifications">
               Notifications
               {unread > 0 && <span className="pill">{unread}</span>}
             </Link>
-            {session?.club ? (
+            {session?.role === 'SA' ? (
+              // SA can create clubs with initial leader assignment
+              <Link to="/CreateClub">Create Club</Link>
+            ) : session?.club ? (
               <Link className="chip-link" to={`/ClubPage/${session.club}`}>
                 My Club
               </Link>

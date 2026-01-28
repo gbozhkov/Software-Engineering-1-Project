@@ -1,4 +1,5 @@
 -- DROP IN CORRECT ORDER (because of foreign keys)
+DROP TABLE IF EXISTS notification_reads;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS events;
@@ -19,7 +20,7 @@ CREATE TABLE `clubs` (
 CREATE TABLE `person` (
     `username` varchar(255) NOT NULL COMMENT 'Unique username for each person',
     `password` varchar(255) NOT NULL COMMENT 'Password hash for the user account (bcrypt)',
-    `role` text NOT NULL COMMENT 'Role of the person in the club (CL, VP, CM, STU)',
+    `role` text NOT NULL COMMENT 'Role of the person in the club (SA, CL, VP, CM, STU) - SA=System Admin has all CL powers for ALL clubs',
     `club` varchar(255) DEFAULT NULL COMMENT 'The club the person is associated with; NULL if not a member of any club; STU + club means pending membership',
     `sessionId` varchar(255) DEFAULT NULL COMMENT 'Session identifier for logged-in users; NULL if not logged in',
     PRIMARY KEY (`username`),
@@ -47,12 +48,15 @@ CREATE TABLE `comments` (
     `comment` text NOT NULL COMMENT 'The content of the comment',
     `rating` int NOT NULL DEFAULT '0' COMMENT 'Rating associated with the comment, from 1 to 5; 0 if no rating is given',
     `username` varchar(255) NOT NULL COMMENT 'The username of the person who made the comment',
-    `clubName` varchar(255) NOT NULL COMMENT 'The club the comment is associated with',
+    `clubName` varchar(255) DEFAULT NULL COMMENT 'The club the comment is associated with (NULL if comment is for an event)',
+    `eventid` int DEFAULT NULL COMMENT 'The event the comment is associated with (NULL if comment is for a club)',
     PRIMARY KEY (`commentid`),
     KEY `username` (`username`),
     KEY `clubName` (`clubName`),
+    KEY `eventid` (`eventid`),
     CONSTRAINT `comments_ibfk_3` FOREIGN KEY (`username`) REFERENCES `person` (`username`) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT `comments_ibfk_4` FOREIGN KEY (`clubName`) REFERENCES `clubs` (`clubName`) ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT `comments_ibfk_4` FOREIGN KEY (`clubName`) REFERENCES `clubs` (`clubName`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `comments_ibfk_5` FOREIGN KEY (`eventid`) REFERENCES `events` (`eventid`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE = InnoDB AUTO_INCREMENT = 12 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 CREATE TABLE `notifications` (
@@ -77,6 +81,19 @@ CREATE TABLE `notifications` (
     CONSTRAINT `notifications_ibfk_4` FOREIGN KEY (`replyTo`) REFERENCES `notifications` (`notificationid`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
+-- Table to track recipients and read status for club-wide notifications
+-- When a club-wide notification is sent, a row is inserted for each club member with readAt = NULL
+-- readAt = NULL means unread, readAt = timestamp means read
+CREATE TABLE `notification_reads` (
+    `notificationid` int NOT NULL COMMENT 'The club-wide notification ID',
+    `username` varchar(255) NOT NULL COMMENT 'The user who should receive the notification',
+    `readAt` datetime DEFAULT NULL COMMENT 'NULL = unread, timestamp = when read',
+    PRIMARY KEY (`notificationid`, `username`),
+    KEY `username` (`username`),
+    CONSTRAINT `notification_reads_ibfk_1` FOREIGN KEY (`notificationid`) REFERENCES `notifications` (`notificationid`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `notification_reads_ibfk_2` FOREIGN KEY (`username`) REFERENCES `person` (`username`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
 -- ===== CLUBS =====
 INSERT INTO clubs (`clubName`, `description`, `memberCount`, `memberMax`, `bannerImage`, `bannerColor`) VALUES
 ('Ski', '<p>The Ski Club meets every winter. Equipment rentals available.<br><b>Weekly schedule:</b><ul><li>Mon: dryland training 18:00-19:30</li><li>Fri: slope trips (depart 06:00)</li></ul><p style="color:blue">Après-ski socials every Saturday night.</p>', 18, 40, 'https://www.shutterstock.com/image-photo/snowboarder-skiing-downhill-panoramic-format-260nw-1203033724.jpg', NULL),
@@ -98,6 +115,7 @@ INSERT INTO clubs (`clubName`, `description`, `memberCount`, `memberMax`, `banne
 
 -- ===== PERSONS =====
 INSERT INTO person (`username`, `password`, `role`, `club`) VALUES
+('Admin','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','SA',NULL),
 ('Francesco','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CL','Ski'),
 ('Samuele','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','VP','Ski'),
 ('Ari','$2a$10$SfoBY49Y..SbmuMc0J8YIe1TTnaMRly/b/OpyFh8VAAhvoai8y.qK','CM','Ski'),
@@ -366,6 +384,37 @@ INSERT INTO comments (`date`, `comment`, `rating`, `username`, `clubName`) VALUE
 ('2025-12-02 03:00:00','Monster White batch #7 is ELITE. Also I think the moon landing was filmed in a basement. Not sure how we got here.',5,'MonsterAddict','Agartha'),
 ('2025-12-02 03:15:00','Won the theory competition with "Birds Aren''t Real 2.0: Fish Edition." Prize case of Monster is MINE.',5,'WhiteCan47','Agartha');
 
+-- ==== EVENT COMMENTS (for Ski Club events) =====
+INSERT INTO comments (`date`, `comment`, `rating`, `username`, `eventid`) VALUES
+('2025-11-15 08:15:00','Bus departed exactly at 06:00! Impressive organization. The sunrise on the way up was incredible.',0,'Marta',22),
+('2025-11-15 09:30:00','Hit the slopes early and conditions were PERFECT. Fresh powder and no crowds yet!',0,'Francesco',22),
+('2025-11-15 12:45:00','Lunch break at the lodge - their hot chocolate is legendary. Worth the trip alone.',0,'Ari',22),
+('2025-11-15 14:20:00','Tried a black diamond run for the first time. My legs are jelly but I DID IT!',0,'Igor',22),
+('2025-11-15 16:00:00','Equipment rental process was smooth. Staff helped me adjust my bindings perfectly.',0,'Fernanda',22),
+('2025-11-15 18:30:00','Made it back on the bus with 2 minutes to spare. What a day! Already looking forward to the next one.',0,'Samuele',22),
+('2025-11-15 19:00:00','Samuele fell asleep on the bus and snored the ENTIRE way back. It was like riding with a chainsaw.',0,'Francesco',22),
+('2025-12-05 20:15:00','The hot chocolate bar is INSANE. They have like 8 different toppings. This is heaven.',0,'Ari',30),
+('2025-12-05 20:30:00','Francesco told the worst ski joke I have ever heard. It was about a snowman. I won''t repeat it.',0,'Samuele',30),
+('2025-12-05 20:45:00','Board games by the fireplace after a day on the slopes? This is what life is about.',0,'Marta',30),
+('2025-12-05 21:00:00','Someone brought gocciole. I am NOT saying who ate them all. But it rhymes with "Bamuele".',0,'Francesco',30),
+('2025-12-05 21:15:00','THE GOCCIOLE WERE COMMUNAL! Francesco is still holding a grudge from LAST TIME!',0,'Samuele',30),
+('2025-12-05 21:30:00','Igor shared his epic wipeout story from today. I laughed so hard I cried. He took it down a tree.',0,'Ari',30),
+('2025-12-05 21:45:00','Acoustic guitar session was beautiful. Didn''t know Fernanda could sing like that!',0,'Marta',30),
+('2025-12-05 22:00:00','Best après-ski yet. Great vibes, great people, and yes Francesco, I did eat most of the gocciole. Sue me.',0,'Samuele',30),
+('2026-01-10 07:00:00','Starting the new year RIGHT! The mountain is calling and we''re answering at 6 AM!',0,'Francesco',36),
+('2026-01-10 10:30:00','Snow conditions are unreal today. This might be the best trip yet.',0,'Marta',36),
+('2026-01-10 13:00:00','Witnessed the most spectacular wipeout. Person did a full 360. They''re okay but it was WILD.',0,'Ari',36),
+('2026-01-10 15:45:00','My ski instructor said I''ve improved so much since the first trip! Feeling proud.',0,'Igor',36),
+('2026-01-10 17:30:00','Caught the sunset from the peak before heading down. Absolutely breathtaking view.',0,'Fernanda',36),
+('2026-01-10 19:00:00','Everyone is exhausted on the bus but in the best way. New Year, new slopes conquered!',0,'Samuele',36),
+('2026-02-28 08:00:00','Avalanche safety briefing was intense but necessary. Our guide really knows their stuff.',0,'Francesco',45),
+('2026-02-28 11:30:00','The backcountry is absolutely silent except for the sound of our skis. It''s magical out here.',0,'Marta',45),
+('2026-03-01 09:15:00','Woke up in the mountain hut. Coffee tastes different at this altitude. Or maybe I''m just exhausted.',0,'Ari',45),
+('2026-03-01 14:00:00','Found an untouched bowl and we got first tracks. This is what we came for!',0,'Igor',45),
+('2026-03-01 16:30:00','Navigation practice with map and compass. Getting better at reading the terrain.',0,'Samuele',45),
+('2026-03-02 10:00:00','Last day and we''re all feeling it. Legs are destroyed but hearts are full.',0,'Fernanda',45),
+('2026-03-02 15:00:00','Made it back safely. This trip pushed all of us but we did it together. Next year: bigger peaks!',0,'Francesco',45);
+
 -- ==== NOTIFICATIONS =====
 INSERT INTO notifications (`username`, `senderUsername`, `clubName`, `type`, `message`, `link`, `isRead`, `createdAt`, `replyTo`) VALUES
 ('Marta', NULL, 'Ski', 'membership', 'You have been promoted to VP in Ski', '/ClubPage/Ski', 1, '2025-10-15 09:00:00', NULL),
@@ -412,6 +461,76 @@ INSERT INTO notifications (`username`, `senderUsername`, `clubName`, `type`, `me
 (NULL, 'TheEnlightenedOne', 'Agartha', 'email', 'EMERGENCY: Spotted a lizard person at the grocery store. Meeting tonight at 23:00 to discuss surveillance tactics.', '/ClubPage/Agartha', 0, '2025-12-15 18:00:00', NULL),
 (NULL, 'TheEnlightenedOne', 'Agartha', 'event', 'Reptilian Theory Session starts in 2 hours. Stock up on Monster White. This is going to be a LONG night.', '/ClubPage/Agartha', 0, '2025-12-16 21:00:00', NULL),
 (NULL, 'Ethan', 'Coding', 'event', 'Next hack night: Building a REST API. Perfect for beginners. Pizza on me!', '/ClubPage/Coding', 0, '2025-12-17 11:00:00', NULL);
+
+-- ==== NOTIFICATION_READS ====
+INSERT INTO notification_reads (`notificationid`, `username`, `readAt`) VALUES(6, 'Samuele', '2025-10-22 09:00:00'),
+(6, 'Ari', '2025-10-22 10:30:00'),
+(6, 'Marta', '2025-10-22 11:00:00'),
+(10, 'Samuele', '2025-10-25 08:00:00'),
+(10, 'Ari', '2025-10-25 09:00:00'),
+(10, 'Marta', '2025-10-25 10:00:00'),
+(11, 'Francesco', '2025-10-25 18:30:00'),
+(11, 'Samuele', '2025-10-25 19:00:00'),
+(11, 'Ari', '2025-10-25 20:00:00'),
+(12, 'Samuele', '2025-10-27 10:45:00'),
+(12, 'Ari', '2025-10-27 11:00:00'),
+(12, 'Marta', '2025-10-27 12:00:00'),
+(16, 'Francesco', '2025-10-29 11:15:00'),
+(16, 'Samuele', '2025-10-29 11:30:00'),
+(16, 'Marta', '2025-10-29 12:00:00'),
+(17, 'Samuele', '2025-11-01 17:00:00'),
+(17, 'Ari', '2025-11-01 18:00:00'),
+(17, 'Marta', '2025-11-01 19:00:00'),
+(18, 'Francesco', '2025-11-03 09:30:00'),
+(18, 'Samuele', '2025-11-03 10:00:00'),
+(18, 'Ari', '2025-11-03 11:00:00'),
+(23, 'Samuele', '2025-11-06 09:00:00'),
+(23, 'Ari', '2025-11-06 10:00:00'),
+(23, 'Marta', '2025-11-06 11:00:00'),
+(24, 'Francesco', '2025-11-06 09:30:00'),
+(24, 'Samuele', '2025-11-06 10:00:00'),
+(24, 'Marta', '2025-11-06 11:00:00'),
+(25, 'Samuele', '2025-11-08 11:00:00'),
+(25, 'Ari', '2025-11-08 12:00:00'),
+(25, 'Marta', '2025-11-08 13:00:00'),
+(25, 'Igor', '2025-11-08 14:00:00'),
+(27, 'Hana', '2025-11-07 15:30:00'),
+(27, 'Giorgie', '2025-11-07 16:00:00'),
+(27, 'Marco_b', '2025-11-07 18:00:00'),
+(27, 'Harry', '2025-11-07 19:00:00'),
+(28, 'Sofia', NULL),
+(28, 'Lena', NULL),
+(28, 'Yasmin', NULL),
+(32, 'Priya', NULL),
+(32, 'Hector', NULL),
+(33, 'Greta', NULL),
+(33, 'Mo', NULL),
+(34, 'Ethan', NULL),
+(34, 'Toby', NULL),
+(35, 'Layla', NULL),
+(35, 'Helena', NULL),
+(39, 'Samuele', NULL),
+(39, 'Ari', NULL),
+(39, 'Marta', NULL),
+(39, 'Igor', NULL),
+(40, 'Hana', NULL),
+(40, 'Giorgie', NULL),
+(40, 'Marco_b', NULL),
+(40, 'Harry', NULL),
+(41, 'TunnelVision', NULL),
+(41, 'BasementDweller', NULL),
+(41, 'HollowEarthBeliever', NULL),
+(41, 'MonsterAddict', NULL),
+(41, 'UndergroundScholar', NULL),
+(41, 'WhiteCan47', NULL),
+(42, 'TunnelVision', NULL),
+(42, 'BasementDweller', NULL),
+(42, 'HollowEarthBeliever', NULL),
+(42, 'MonsterAddict', NULL),
+(42, 'UndergroundScholar', NULL),
+(42, 'WhiteCan47', NULL),
+(43, 'Rina', NULL),
+(43, 'Toby', NULL);
 
 -- ===== Update clubs.memberCount to match actual inserted people (counts based on above inserts) =====
 UPDATE clubs SET memberCount = (
