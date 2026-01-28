@@ -422,11 +422,19 @@ app.get('/session', requireAuth, async (req, res) => {
 })
 
 // Create a new club
-app.post('/createClub', requireAuth, requireRoles('STU'), async (req, res) => {
-  const { clubName, description, memberMax, bannerImage, bannerColor } = req.body
+app.post('/createClub', requireAuth, requireRoles('STU', 'SA'), async (req, res) => {
+  const { clubName, description, memberMax, bannerImage, bannerColor, initialLeader } = req.body
   console.log(`POST /createClub - User: ${req.user?.username}, Club: ${clubName}`)
   if (!clubName || !description || !memberMax) return res.status(400).json({ message: 'Missing club fields' })
-  if (req.user.club) return res.status(400).json({ message: 'You must not be enrolled in any club to create a new one' })
+  
+  // SA can create clubs without being in one, but must specify initial leader
+  if (isSA(req.user)) {
+    if (!initialLeader) return res.status(400).json({ message: 'SA must specify an initial leader for the club' })
+  } else {
+    // STU must not be in a club
+    if (req.user.club) return res.status(400).json({ message: 'You must not be enrolled in any club to create a new one' })
+  }
+  
   const maxMembers = Number(memberMax)
   if (Number.isNaN(maxMembers) || maxMembers < 1) return res.status(400).json({ message: 'memberMax must be a positive number' })
 
@@ -434,13 +442,34 @@ app.post('/createClub', requireAuth, requireRoles('STU'), async (req, res) => {
     const [exists] = await dbp.query('SELECT 1 FROM clubs WHERE clubName = ?', [clubName])
     if (exists.length > 0) return res.status(400).json({ message: 'Club already exists' })
 
-    await dbp.query(
-      'INSERT INTO clubs (clubName, description, memberCount, memberMax, bannerImage, bannerColor) VALUES (?, ?, ?, ?, ?, ?)',
-      [clubName, description, 1, maxMembers, bannerImage || '', bannerColor || '#38bdf8']
-    )
-    await dbp.query('UPDATE person SET role = ?, club = ? WHERE username = ?', ['CL', clubName, req.user.username])
+    if (isSA(req.user)) {
+      // SA creates club - verify initial leader is valid (has no club, not SA)
+      const [leaderRows] = await dbp.query(
+        "SELECT username, role, club FROM person WHERE username = ?",
+        [initialLeader]
+      )
+      if (leaderRows.length === 0) return res.status(404).json({ message: 'Initial leader not found' })
+      if (leaderRows[0].role === 'SA') return res.status(400).json({ message: 'Cannot assign SA as club leader' })
+      if (leaderRows[0].club) return res.status(400).json({ message: 'Initial leader is already in a club' })
+      
+      // Create club with memberCount=1 and assign leader
+      await dbp.query(
+        'INSERT INTO clubs (clubName, description, memberCount, memberMax, bannerImage, bannerColor) VALUES (?, ?, ?, ?, ?, ?)',
+        [clubName, description, 1, maxMembers, bannerImage || '', bannerColor || '#38bdf8']
+      )
+      await dbp.query('UPDATE person SET role = ?, club = ? WHERE username = ?', ['CL', clubName, initialLeader])
+      
+      return res.status(201).json({ message: 'Club created successfully with leader: ' + initialLeader })
+    } else {
+      // STU creates club and becomes CL
+      await dbp.query(
+        'INSERT INTO clubs (clubName, description, memberCount, memberMax, bannerImage, bannerColor) VALUES (?, ?, ?, ?, ?, ?)',
+        [clubName, description, 1, maxMembers, bannerImage || '', bannerColor || '#38bdf8']
+      )
+      await dbp.query('UPDATE person SET role = ?, club = ? WHERE username = ?', ['CL', clubName, req.user.username])
 
-    return res.status(201).json({ message: 'Club added successfully', sessionUpdate: { role: 'CL', club: clubName } })
+      return res.status(201).json({ message: 'Club added successfully', sessionUpdate: { role: 'CL', club: clubName } })
+    }
   } catch (err) {
     console.error('Create club failed', err)
     return res.status(500).json({ message: 'Failed to create club' })
@@ -1366,6 +1395,25 @@ app.get('/allUsers', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Fetch users failed', err)
     return res.status(500).json({ message: 'Failed to fetch users' })
+  }
+})
+
+// Get users available to become club leaders (no club, not SA) - SA only
+app.get('/availableLeaders', requireAuth, async (req, res) => {
+  console.log(`GET /availableLeaders - User: ${req.user?.username}, Search: ${req.query.q || ''}`)
+  if (!isSA(req.user)) return forbidden(res)
+  
+  try {
+    const search = req.query.q || ''
+    const like = `%${search}%`
+    const [users] = await dbp.query(
+      "SELECT username, role FROM person WHERE username LIKE ? AND club IS NULL AND role != 'SA' ORDER BY username LIMIT 20",
+      [like]
+    )
+    return res.json(users)
+  } catch (err) {
+    console.error('Fetch available leaders failed', err)
+    return res.status(500).json({ message: 'Failed to fetch available leaders' })
   }
 })
 

@@ -103,7 +103,7 @@ const Home = () => {
             </div>
             {!session?.club && (
                 <div className="createClub">
-                    <h4>No club interest you?</h4>
+                    <h4 style={{marginBottom: "10px"}}>No club interest you?</h4>
                     <button><Link to={"/CreateClub"}>Create Club</Link></button>
                 </div>
             )}

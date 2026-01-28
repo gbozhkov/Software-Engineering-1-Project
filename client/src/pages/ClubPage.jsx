@@ -378,7 +378,7 @@ const ClubPage = () => {
                 </div>
             )}
             <div className="events">
-                <h3 style={{margin: "0 0 0.5rem 0", fontSize: "1.35rem", color: "black"}}>Events:</h3>
+                <h3 style={{margin: "0 0 0.5rem 0", fontSize: "1.35rem"}}>Events:</h3>
                 <div className="top-bar">
                     <input
                         type="text"
@@ -451,7 +451,7 @@ const ClubPage = () => {
                         
                         {/* Event Comment Section - Similar to Notification Replies */}
                         {!!isMember && !!event.accepted && (
-                            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--muted)' }}>
                                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                                     <button 
                                         className="btn btn-sm" 
@@ -616,7 +616,7 @@ const ClubPage = () => {
                                                 style={{ 
                                                     padding: "0.25rem 0.5rem",
                                                     fontSize: "0.85rem",
-                                                    border: "1px solid #cbd5e1",
+                                                    border: "1px solid var(--border)",
                                                     cursor: "pointer",
                                                     marginBottom: "0px"
                                                 }}
@@ -681,12 +681,12 @@ const ClubPage = () => {
                 <h3 style={{marginTop: "0.6rem"}}>Write a comment:</h3>
                 
                 {session && (
-                    <form onSubmit={handleSubmitComment} style={{ marginBottom: "1rem", padding: "1rem", border: "1px solid #e2e8f0", borderRadius: "8px", backgroundColor: "#f8fafc" }}>
+                    <form onSubmit={handleSubmitComment} style={{ marginBottom: "1rem", padding: "1rem", border: "1px solid var(--border)", borderRadius: "8px", backgroundColor: "var(--surface)" }}>
                         <textarea 
                             placeholder="Write your comment..." 
                             value={newComment.comment}
                             onChange={(e) => setNewComment(prev => ({ ...prev, comment: e.target.value }))}
-                            style={{ width: "100%", maxWidth: "100%", minHeight: "80px", padding: "0.5rem", borderRadius: "4px", border: "1px solid #cbd5e1", marginBottom: "0.5rem" }}
+                            style={{ width: "100%", maxWidth: "100%", minHeight: "80px", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border)", marginBottom: "0.5rem" }}
                             required
                         />
                         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -695,7 +695,7 @@ const ClubPage = () => {
                                 <select 
                                     value={newComment.rating}
                                     onChange={(e) => setNewComment(prev => ({ ...prev, rating: e.target.value }))}
-                                    style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", border: "1px solid #cbd5e1", margin: 0 }}
+                                    style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", border: "1px solid var(--border)", margin: 0 }}
                                 >
                                     <option value={0}>None</option>
                                     <option value={1}>⭐ 1</option>
@@ -744,7 +744,7 @@ const ClubPage = () => {
                     ) : comments.map((c) => (
                         <div className="comment" key={c.commentid}>
                             <div className="comment-header">
-                                <div style={{fontWeight: c.username === session?.username ? 800 : 700, color: "#0f172a"}}>{c.username}</div>
+                                <div style={{fontWeight: c.username === session?.username ? 800 : 700}}>{c.username}</div>
                                 <div className="comment-meta">{new Date(c.date).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
                             </div>
                             <div className="comment-body">
