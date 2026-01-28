@@ -474,7 +474,7 @@ const Notifications = () => {
                   Reply
                 </button>
               )}
-              {n.username && hasReceivedMessagesInConversation && (
+              {((n.username && hasReceivedMessagesInConversation) || (isClubWide && !isSent)) && (
                 hasUnreadForUser ? (
                   <button className="btn btn-sm" onClick={() => markReadMutation.mutate({ id: n.notificationid, read: true })}>Mark read</button>
                 ) : (

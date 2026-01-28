@@ -1,4 +1,5 @@
 -- DROP IN CORRECT ORDER (because of foreign keys)
+DROP TABLE IF EXISTS notification_reads;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS events;
@@ -78,6 +79,19 @@ CREATE TABLE `notifications` (
     CONSTRAINT `notifications_ibfk_2` FOREIGN KEY (`clubName`) REFERENCES `clubs` (`clubName`) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT `notifications_ibfk_3` FOREIGN KEY (`senderUsername`) REFERENCES `person` (`username`) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT `notifications_ibfk_4` FOREIGN KEY (`replyTo`) REFERENCES `notifications` (`notificationid`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+-- Table to track recipients and read status for club-wide notifications
+-- When a club-wide notification is sent, a row is inserted for each club member with readAt = NULL
+-- readAt = NULL means unread, readAt = timestamp means read
+CREATE TABLE `notification_reads` (
+    `notificationid` int NOT NULL COMMENT 'The club-wide notification ID',
+    `username` varchar(255) NOT NULL COMMENT 'The user who should receive the notification',
+    `readAt` datetime DEFAULT NULL COMMENT 'NULL = unread, timestamp = when read',
+    PRIMARY KEY (`notificationid`, `username`),
+    KEY `username` (`username`),
+    CONSTRAINT `notification_reads_ibfk_1` FOREIGN KEY (`notificationid`) REFERENCES `notifications` (`notificationid`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `notification_reads_ibfk_2` FOREIGN KEY (`username`) REFERENCES `person` (`username`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 -- ===== CLUBS =====
@@ -447,6 +461,76 @@ INSERT INTO notifications (`username`, `senderUsername`, `clubName`, `type`, `me
 (NULL, 'TheEnlightenedOne', 'Agartha', 'email', 'EMERGENCY: Spotted a lizard person at the grocery store. Meeting tonight at 23:00 to discuss surveillance tactics.', '/ClubPage/Agartha', 0, '2025-12-15 18:00:00', NULL),
 (NULL, 'TheEnlightenedOne', 'Agartha', 'event', 'Reptilian Theory Session starts in 2 hours. Stock up on Monster White. This is going to be a LONG night.', '/ClubPage/Agartha', 0, '2025-12-16 21:00:00', NULL),
 (NULL, 'Ethan', 'Coding', 'event', 'Next hack night: Building a REST API. Perfect for beginners. Pizza on me!', '/ClubPage/Coding', 0, '2025-12-17 11:00:00', NULL);
+
+-- ==== NOTIFICATION_READS ====
+INSERT INTO notification_reads (`notificationid`, `username`, `readAt`) VALUES(6, 'Samuele', '2025-10-22 09:00:00'),
+(6, 'Ari', '2025-10-22 10:30:00'),
+(6, 'Marta', '2025-10-22 11:00:00'),
+(10, 'Samuele', '2025-10-25 08:00:00'),
+(10, 'Ari', '2025-10-25 09:00:00'),
+(10, 'Marta', '2025-10-25 10:00:00'),
+(11, 'Francesco', '2025-10-25 18:30:00'),
+(11, 'Samuele', '2025-10-25 19:00:00'),
+(11, 'Ari', '2025-10-25 20:00:00'),
+(12, 'Samuele', '2025-10-27 10:45:00'),
+(12, 'Ari', '2025-10-27 11:00:00'),
+(12, 'Marta', '2025-10-27 12:00:00'),
+(16, 'Francesco', '2025-10-29 11:15:00'),
+(16, 'Samuele', '2025-10-29 11:30:00'),
+(16, 'Marta', '2025-10-29 12:00:00'),
+(17, 'Samuele', '2025-11-01 17:00:00'),
+(17, 'Ari', '2025-11-01 18:00:00'),
+(17, 'Marta', '2025-11-01 19:00:00'),
+(18, 'Francesco', '2025-11-03 09:30:00'),
+(18, 'Samuele', '2025-11-03 10:00:00'),
+(18, 'Ari', '2025-11-03 11:00:00'),
+(23, 'Samuele', '2025-11-06 09:00:00'),
+(23, 'Ari', '2025-11-06 10:00:00'),
+(23, 'Marta', '2025-11-06 11:00:00'),
+(24, 'Francesco', '2025-11-06 09:30:00'),
+(24, 'Samuele', '2025-11-06 10:00:00'),
+(24, 'Marta', '2025-11-06 11:00:00'),
+(25, 'Samuele', '2025-11-08 11:00:00'),
+(25, 'Ari', '2025-11-08 12:00:00'),
+(25, 'Marta', '2025-11-08 13:00:00'),
+(25, 'Igor', '2025-11-08 14:00:00'),
+(27, 'Hana', '2025-11-07 15:30:00'),
+(27, 'Giorgie', '2025-11-07 16:00:00'),
+(27, 'Marco_b', '2025-11-07 18:00:00'),
+(27, 'Harry', '2025-11-07 19:00:00'),
+(28, 'Sofia', NULL),
+(28, 'Lena', NULL),
+(28, 'Yasmin', NULL),
+(32, 'Priya', NULL),
+(32, 'Hector', NULL),
+(33, 'Greta', NULL),
+(33, 'Mo', NULL),
+(34, 'Ethan', NULL),
+(34, 'Toby', NULL),
+(35, 'Layla', NULL),
+(35, 'Helena', NULL),
+(39, 'Samuele', NULL),
+(39, 'Ari', NULL),
+(39, 'Marta', NULL),
+(39, 'Igor', NULL),
+(40, 'Hana', NULL),
+(40, 'Giorgie', NULL),
+(40, 'Marco_b', NULL),
+(40, 'Harry', NULL),
+(41, 'TunnelVision', NULL),
+(41, 'BasementDweller', NULL),
+(41, 'HollowEarthBeliever', NULL),
+(41, 'MonsterAddict', NULL),
+(41, 'UndergroundScholar', NULL),
+(41, 'WhiteCan47', NULL),
+(42, 'TunnelVision', NULL),
+(42, 'BasementDweller', NULL),
+(42, 'HollowEarthBeliever', NULL),
+(42, 'MonsterAddict', NULL),
+(42, 'UndergroundScholar', NULL),
+(42, 'WhiteCan47', NULL),
+(43, 'Rina', NULL),
+(43, 'Toby', NULL);
 
 -- ===== Update clubs.memberCount to match actual inserted people (counts based on above inserts) =====
 UPDATE clubs SET memberCount = (
