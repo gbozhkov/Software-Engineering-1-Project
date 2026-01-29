@@ -81,9 +81,6 @@ CREATE TABLE `notifications` (
     CONSTRAINT `notifications_ibfk_4` FOREIGN KEY (`replyTo`) REFERENCES `notifications` (`notificationid`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
--- Table to track recipients and read status for club-wide notifications
--- When a club-wide notification is sent, a row is inserted for each club member with readAt = NULL
--- readAt = NULL means unread, readAt = timestamp means read
 CREATE TABLE `notification_reads` (
     `notificationid` int NOT NULL COMMENT 'The club-wide notification ID',
     `username` varchar(255) NOT NULL COMMENT 'The user who should receive the notification',

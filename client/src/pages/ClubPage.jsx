@@ -678,97 +678,99 @@ const ClubPage = () => {
                     )}
                 </div>
                 </div>
-                <h3 style={{marginTop: "0.6rem"}}>Write a comment:</h3>
-                
-                {session && (
-                    <form onSubmit={handleSubmitComment} style={{ marginBottom: "1rem", padding: "1rem", border: "1px solid var(--border)", borderRadius: "8px", backgroundColor: "var(--surface)" }}>
-                        <textarea 
-                            placeholder="Write your comment..." 
-                            value={newComment.comment}
-                            onChange={(e) => setNewComment(prev => ({ ...prev, comment: e.target.value }))}
-                            style={{ width: "100%", maxWidth: "100%", minHeight: "80px", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border)", marginBottom: "0.5rem" }}
-                            required
-                        />
-                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                            <label style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                                Rating:
-                                <select 
-                                    value={newComment.rating}
-                                    onChange={(e) => setNewComment(prev => ({ ...prev, rating: e.target.value }))}
-                                    style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", border: "1px solid var(--border)", margin: 0 }}
-                                >
-                                    <option value={0}>None</option>
-                                    <option value={1}>⭐ 1</option>
-                                    <option value={2}>⭐ 2</option>
-                                    <option value={3}>⭐ 3</option>
-                                    <option value={4}>⭐ 4</option>
-                                    <option value={5}>⭐ 5</option>
-                                </select>
-                            </label>
-                            <button type="submit" disabled={commentActionMutation.isPending} style={{ marginLeft: "auto" }}>
-                                {commentActionMutation.isPending ? "Posting..." : "Post Comment"}
-                            </button>
-                        </div>
-                    </form>
-                )}
+                <div className="members-card">
+                    <h3 style={{marginTop: "0.6rem"}}>Write a comment:</h3>
+                    
+                    {session && (
+                        <form onSubmit={handleSubmitComment} style={{ marginBottom: "1rem", padding: "1rem", border: "1px solid var(--border)", borderRadius: "8px", backgroundColor: "var(--surface)" }}>
+                            <textarea 
+                                placeholder="Write your comment..." 
+                                value={newComment.comment}
+                                onChange={(e) => setNewComment(prev => ({ ...prev, comment: e.target.value }))}
+                                style={{ width: "100%", maxWidth: "100%", minHeight: "80px", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border)", marginBottom: "0.5rem" }}
+                                required
+                            />
+                            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                <label style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                                    Rating:
+                                    <select 
+                                        value={newComment.rating}
+                                        onChange={(e) => setNewComment(prev => ({ ...prev, rating: e.target.value }))}
+                                        style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", border: "1px solid var(--border)", margin: 0 }}
+                                    >
+                                        <option value={0}>None</option>
+                                        <option value={1}>⭐ 1</option>
+                                        <option value={2}>⭐ 2</option>
+                                        <option value={3}>⭐ 3</option>
+                                        <option value={4}>⭐ 4</option>
+                                        <option value={5}>⭐ 5</option>
+                                    </select>
+                                </label>
+                                <button type="submit" disabled={commentActionMutation.isPending} style={{ marginLeft: "auto" }}>
+                                    {commentActionMutation.isPending ? "Posting..." : "Post Comment"}
+                                </button>
+                            </div>
+                        </form>
+                    )}
 
-                <h3 style={{marginTop: "0.6rem"}}>Comments:</h3>
-                <div className="section-header">
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", width: "100%" }}>
-                        <input
-                            type="text"
-                            placeholder="Search comments/user"
-                            value={commentFilters.search}
-                            onChange={(e) => updateCommentFilter("search", e.target.value)}
-                            style={{ maxWidth: "100%" }}
-                        />
-                        <div style={{ display: "flex", gap: "0.5rem" }}>
-                            <select value={commentFilters.orderBy} onChange={(e) => updateCommentFilter("orderBy", e.target.value)} style={{ flex: 1 }}>
-                                <option value="date">Date</option>
-                                <option value="rating">Rating</option>
-                                <option value="username">Username</option>
-                            </select>
-                            <select value={commentFilters.order} onChange={(e) => updateCommentFilter("order", e.target.value)} style={{ flex: 1 }}>
-                                <option value="desc">Newest</option>
-                                <option value="asc">Oldest / Low</option>
-                            </select>
+                    <h3 style={{marginTop: "0.6rem"}}>Comments:</h3>
+                    <div className="section-header">
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", width: "100%" }}>
+                            <input
+                                type="text"
+                                placeholder="Search comments/user"
+                                value={commentFilters.search}
+                                onChange={(e) => updateCommentFilter("search", e.target.value)}
+                                style={{ maxWidth: "100%" }}
+                            />
+                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                                <select value={commentFilters.orderBy} onChange={(e) => updateCommentFilter("orderBy", e.target.value)} style={{ flex: 1 }}>
+                                    <option value="date">Date</option>
+                                    <option value="rating">Rating</option>
+                                    <option value="username">Username</option>
+                                </select>
+                                <select value={commentFilters.order} onChange={(e) => updateCommentFilter("order", e.target.value)} style={{ flex: 1 }}>
+                                    <option value="desc">Newest</option>
+                                    <option value="asc">Oldest / Low</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div className="comments-list" style={{ maxHeight: "600px", overflowY: "auto" }}>
-                    {commentsError && <p className="alert error">Unable to load comments.</p>}
-                    {comments.length === 0 && !loadingComments ? (
-                        <div>
-                            <p style={{ textAlign: "center", opacity: 0.6 }}>No comments yet</p>
-                        </div>
-                    ) : comments.map((c) => (
-                        <div className="comment" key={c.commentid}>
-                            <div className="comment-header">
-                                <div style={{fontWeight: c.username === session?.username ? 800 : 700}}>{c.username}</div>
-                                <div className="comment-meta">{new Date(c.date).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+                    <div className="comments-list" style={{ maxHeight: "600px", overflowY: "auto" }}>
+                        {commentsError && <p className="alert error">Unable to load comments.</p>}
+                        {comments.length === 0 && !loadingComments ? (
+                            <div>
+                                <p style={{ textAlign: "center", opacity: 0.6 }}>No comments yet</p>
                             </div>
-                            <div className="comment-body">
-                                {c.comment}
-                            </div>
-                            <div className="comment-footer">
-                                {c.rating > 0 && (<div className="rating">⭐ {c.rating}/5</div>)}
-                                <div style={{marginLeft: "auto"}}>
-                                    {(isAdmin || c.username === session?.username) && (
-                                        <button className="deletebtn" onClick={() => commentActionMutation.mutate({ url: "/comment/" + c.commentid, method: "delete" })}>Delete</button>
-                                    )}
+                        ) : comments.map((c) => (
+                            <div className="comment" key={c.commentid}>
+                                <div className="comment-header">
+                                    <div style={{fontWeight: c.username === session?.username ? 800 : 700}}>{c.username}</div>
+                                    <div className="comment-meta">{new Date(c.date).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+                                </div>
+                                <div className="comment-body">
+                                    {c.comment}
+                                </div>
+                                <div className="comment-footer">
+                                    {c.rating > 0 && (<div className="rating">⭐ {c.rating}/5</div>)}
+                                    <div style={{marginLeft: "auto"}}>
+                                        {(isAdmin || c.username === session?.username) && (
+                                            <button className="deletebtn" onClick={() => commentActionMutation.mutate({ url: "/comment/" + c.commentid, method: "delete" })}>Delete</button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
-                    {loadingComments && <p style={{ textAlign: "center", opacity: 0.6 }}>Loading comments...</p>}
-                    {hasNextPage && !loadingComments && (
-                        <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage} style={{ width: "100%", marginTop: "1rem" }}>
-                            {isFetchingNextPage ? "Loading more..." : "Load More Comments"}
-                        </button>
-                    )}
-                    {!hasNextPage && comments.length > 0 && (
-                        <p style={{ textAlign: "center", opacity: 0.6, marginTop: "1rem" }}>No more comments</p>
-                    )}
+                        ))}
+                        {loadingComments && <p style={{ textAlign: "center", opacity: 0.6 }}>Loading comments...</p>}
+                        {hasNextPage && !loadingComments && (
+                            <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage} style={{ width: "100%", marginTop: "1rem" }}>
+                                {isFetchingNextPage ? "Loading more..." : "Load More Comments"}
+                            </button>
+                        )}
+                        {!hasNextPage && comments.length > 0 && (
+                            <p style={{ textAlign: "center", opacity: 0.6, marginTop: "1rem" }}>No more comments</p>
+                        )}
+                    </div>
                 </div>
             </aside>
             <div>
