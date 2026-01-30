@@ -132,9 +132,12 @@ export default function BrowseClubs() {
       {/* Clubs grid */}
       <div className="clubs-grid">
         {clubs.map((club) => {
-          const isMyClub = session?.club === club.clubName;
-          const alreadyInClub = session?.club && !isMyClub; // Has club (including pending)
-          const isSA = session?.role === 'SA';
+          // Check if user has membership in this club
+          const myMembership = session?.memberships?.find(m => m.clubName === club.clubName);
+          const isMyClub = !!myMembership;
+          const isSA = session?.isAdmin === true;
+          // Check if user is a Club Leader of any club (CL cannot join other clubs)
+          const isClubLeaderAnywhere = session?.memberships?.some(m => m.role === 'CL') || false;
           const bannerStyle = club.bannerImage 
             ? { backgroundImage: `url(${club.bannerImage})` }
             : { backgroundColor: club.bannerColor || '#38bdf8' };
@@ -148,7 +151,7 @@ export default function BrowseClubs() {
                 <ProgressBar percentage={(club.memberCount / club.memberMax) * 100} />
                 <div className="club-actions">
                   <Link className="btn" to={`/ClubPage/${club.clubName}`}>View Club</Link>
-                  {!isSA && !isMyClub && !alreadyInClub && club.memberCount < club.memberMax && (
+                  {!isSA && !isMyClub && !isClubLeaderAnywhere && club.memberCount < club.memberMax && (
                     <button className="btn" onClick={async () => {
                       try {
                         await api.put(`/joinClubs/${club.clubName}`);
@@ -158,6 +161,9 @@ export default function BrowseClubs() {
                         alert(err.response?.data?.message || 'Failed to join club');
                       }
                     }}>Join</button>
+                  )}
+                  {!isSA && !isMyClub && isClubLeaderAnywhere && (
+                    <span className="btn btn-muted" title="Club Leaders cannot join other clubs">CL restricted</span>
                   )}
                 </div>
               </div>

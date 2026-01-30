@@ -24,8 +24,9 @@ const Notifications = () => {
   const [showReplies, setShowReplies] = useState({})
 
   // SA has all admin powers
-  const isSA = useMemo(() => session?.role === 'SA', [session?.role])
-  const isAdmin = useMemo(() => isSA || ['CL', 'VP'].includes(session?.role), [session?.role, isSA])
+  const isSA = useMemo(() => session?.isAdmin === true, [session?.isAdmin])
+  // User is admin if they are CL or VP of any club
+  const isAdmin = useMemo(() => isSA || session?.memberships?.some(m => ['CL', 'VP'].includes(m.role)), [session?.memberships, isSA])
 
   // 1. Fetch Notifications
   const { data: notificationsData, isLoading: loadingNotifications } = useQuery({
@@ -134,7 +135,8 @@ const Notifications = () => {
     }
     
     // Add link if provided or if linking to club
-    const linkClub = isSA && emailForm.targetClub ? emailForm.targetClub : session?.club
+    const userClubMembership = session?.memberships?.find(m => ['CL', 'VP'].includes(m.role))
+    const linkClub = isSA && emailForm.targetClub ? emailForm.targetClub : userClubMembership?.clubName
     if (emailForm.linkToClub && linkClub) {
       emailData.link = `/ClubPage/${encodeURIComponent(linkClub)}`
     } else if (emailForm.link) {
@@ -277,7 +279,7 @@ const Notifications = () => {
               />
             </div>
 
-            {isAdmin && session?.club && (
+            {isAdmin && session?.memberships?.some(m => ['CL', 'VP'].includes(m.role)) && (
               <div>
                 <label>
                   <input

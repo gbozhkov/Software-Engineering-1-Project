@@ -239,6 +239,70 @@ a {
   border-color: rgba(56, 189, 248, 0.25);
 }
 
+/* My Clubs Dropdown */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  color: var(--text-strong);
+  background: rgba(56, 189, 248, 0.1);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dropdown-toggle:hover {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  min-width: 180px;
+  margin-top: var(--space-xs);
+  padding: var(--space-xs);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.dropdown-menu a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  color: var(--text-default);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-sm);
+  transition: background var(--transition-fast);
+}
+
+.dropdown-menu a:hover {
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.role-badge {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 2px 6px;
+  background: rgba(56, 189, 248, 0.15);
+  border-radius: var(--radius-xs);
+  color: var(--text-soft);
+}
+
 /* Theme Toggle Button */
 .theme-toggle {
   display: flex;

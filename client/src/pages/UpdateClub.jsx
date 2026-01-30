@@ -20,8 +20,9 @@ const UpdateClub = () => {
     })
 
     // SA has full powers for any club, CL only for their own
-    const isSA = session?.role === 'SA'
-    const isLeader = isSA || (session?.role === 'CL' && session?.club === clubName)
+    const isSA = session?.isAdmin === true
+    const myMembership = session?.memberships?.find(m => m.clubName === clubName)
+    const isLeader = isSA || (myMembership?.role === 'CL')
 
     // Fetch existing club data
     const { data: clubData, isLoading } = useQuery({

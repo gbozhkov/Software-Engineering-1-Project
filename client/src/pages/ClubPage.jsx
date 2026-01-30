@@ -69,20 +69,36 @@ const ClubPage = () => {
     const [eventCommentCounts, setEventCommentCounts] = useState({})
 
     // SA (System Administrator) has all powers for ALL clubs
-    const isSA = useMemo(() => session?.role === 'SA', [session])
+    const isSA = useMemo(() => session?.isAdmin === true, [session])
+    
+    // Get user's membership for this specific club
+    const myMembership = useMemo(() => {
+        if (!session?.memberships) return null
+        return session.memberships.find(m => m.clubName === clubName)
+    }, [session, clubName])
+    
     const isAdmin = useMemo(() => {
         if (isSA) return true
-        return session && ['CL', 'VP'].includes(session.role) && session.club === clubName
-    }, [session, clubName, isSA])
+        return myMembership && ['CL', 'VP'].includes(myMembership.role)
+    }, [myMembership, isSA])
+    
     const isLeader = useMemo(() => {
         if (isSA) return true
-        return session && session.role === 'CL' && session.club === clubName
-    }, [session, clubName, isSA])
+        return myMembership && myMembership.role === 'CL'
+    }, [myMembership, isSA])
+    
     const isMember = useMemo(() => {
         if (isSA) return true
-        return session && session.club === clubName && ['CL','VP','CM'].includes(session.role)
-    }, [session, clubName, isSA])
-    const isPending = useMemo(() => session && session.club === clubName && session.role === 'STU', [session, clubName])
+        return myMembership && ['CL','VP','CM'].includes(myMembership.role)
+    }, [myMembership, isSA])
+    
+    const isPending = useMemo(() => myMembership && myMembership.role === 'STU', [myMembership])
+    
+    // Check if user is a CL of any club (used to restrict joining other clubs)
+    const isClubLeaderAnywhere = useMemo(() => {
+        if (!session?.memberships) return false
+        return session.memberships.some(m => m.role === 'CL')
+    }, [session])
 
     // 1. Fetch Club
     const { data: club, isLoading: loadingClub, error: clubError } = useQuery({
@@ -162,7 +178,7 @@ const ClubPage = () => {
     })
 
     const cancelJoinMutation = useMutation({
-        mutationFn: () => api.delete('/cancelJoinRequest'),
+        mutationFn: () => api.delete('/cancelJoinRequest', { data: { clubName } }),
         onSuccess: () => {
             alert('Join request cancelled.')
             queryClient.invalidateQueries(['members', clubName])
@@ -172,7 +188,7 @@ const ClubPage = () => {
     })
 
     const quitClubMutation = useMutation({
-        mutationFn: () => api.delete("/quitClub"),
+        mutationFn: () => api.delete("/quitClub", { data: { clubName } }),
         onSuccess: () => {
             queryClient.invalidateQueries(['members', clubName])
             queryClient.invalidateQueries(['club', clubName])
@@ -197,15 +213,11 @@ const ClubPage = () => {
     })
 
     const transferLeadershipMutation = useMutation({
-        mutationFn: (username) => api.put(`/transferLeadership/${username}`),
+        mutationFn: (username) => api.put(`/transferLeadership/${username}`, { clubName }),
         onSuccess: (response) => {
             queryClient.invalidateQueries(['members', clubName])
-            if (response.data.sessionUpdate) {
-                const currSession = getSession()
-                const updated = { ...currSession, ...response.data.sessionUpdate }
-                localStorage.setItem('session', JSON.stringify(updated))
-                window.dispatchEvent(new Event('sca:session-change'))
-            }
+            // Session is updated via api interceptor
+            window.dispatchEvent(new Event('sca:session-change'))
             alert(response.data.message || 'Leadership transferred successfully')
         },
         onError: (err) => alert(err.response?.data?.message || 'Failed to transfer leadership')
@@ -335,12 +347,17 @@ const ClubPage = () => {
                                 {isSA && (
                                     <button className="btn-muted" disabled style={{ backgroundColor: '#fbbf24', color: '#000' }}>System Admin</button>
                                 )}
-                                {/* Regular join flow - not for SA */}
-                                {!isSA && !isMember && !isPending && !session?.club && (
+                                {/* Regular join flow - not for SA, not for CL of other clubs */}
+                                {!isSA && !isMember && !isPending && !isClubLeaderAnywhere && (
                                     <button className="btn-primary" onClick={() => {
                                         if (!session) return navigate("/LogIn")
                                         joinClubMutation.mutate()
                                     }}>Join / Request</button>
+                                )}
+                                {!isSA && !isMember && !isPending && isClubLeaderAnywhere && (
+                                    <button className="btn-muted" disabled title="Club Leaders cannot join other clubs">
+                                        CL cannot join
+                                    </button>
                                 )}
                                 {isPending && (
                                     <>
@@ -352,11 +369,6 @@ const ClubPage = () => {
                                 )}
                                 {!isSA && isMember && (
                                     <button className="btn-muted" disabled>Already a member</button>
-                                )}
-                                {!isSA && session?.club && !isMember && !isPending && (
-                                    <button className="btn" disabled style={{ opacity: 0.5, cursor: "not-allowed" }}>
-                                        {session?.role === 'STU' ? 'Pending elsewhere' : 'Already in a club'}
-                                    </button>
                                 )}
                             </div>
                         </div>
@@ -630,13 +642,13 @@ const ClubPage = () => {
                                         )}
                                         {isLeader && (
                                             <>
-                                                {p.role === "CM" && (<button onClick={() => memberActionMutation.mutate({ url: "/promote/" + p.username, body: { action: 'promote' } })} title="Promote to VP">▲</button>)}
-                                                {p.role === "VP" && (<button onClick={() => memberActionMutation.mutate({ url: "/promote/" + p.username, body: { action: 'demote' } })} title="Demote to member">▼</button>)}
+                                                {p.role === "CM" && (<button onClick={() => memberActionMutation.mutate({ url: "/promote/" + p.username, body: { action: 'promote', clubName } })} title="Promote to VP">▲</button>)}
+                                                {p.role === "VP" && (<button onClick={() => memberActionMutation.mutate({ url: "/promote/" + p.username, body: { action: 'demote', clubName } })} title="Demote to member">▼</button>)}
                                             </>
                                         )}
                                         {/* SA can expel anyone except CL; CL/VP can expel CM; VP cannot expel other VPs */}
-                                        {isAdmin && p.role !== "CL" && p.username !== session?.username && (isSA || !(p.role === 'VP' && session?.role === 'VP')) && (
-                                            <button className="deletebtn" onClick={() => memberActionMutation.mutate({ url: "/expell/" + p.username })} style={{margin: "0 0 0 0.5rem"}}>X</button>
+                                        {isAdmin && p.role !== "CL" && p.username !== session?.username && (isSA || !(p.role === 'VP' && myMembership?.role === 'VP')) && (
+                                            <button className="deletebtn" onClick={() => memberActionMutation.mutate({ url: "/expell/" + p.username, body: { clubName } })} style={{margin: "0 0 0 0.5rem"}}>X</button>
                                         )}
                                     </td>
                                 </tr>
@@ -666,8 +678,8 @@ const ClubPage = () => {
                                         <tr key={p.username}>
                                             <td>{p.username}</td>
                                             <td>
-                                                <button onClick={() => memberActionMutation.mutate({ url: "/accept/" + p.username })}>✓</button>
-                                                <button onClick={() => memberActionMutation.mutate({ url: "/reject/" + p.username })} className="deletebtn" style={{margin: "0 0 0 0.5rem"}}>✖</button>
+                                                <button onClick={() => memberActionMutation.mutate({ url: "/accept/" + p.username, body: { clubName } })}>✓</button>
+                                                <button onClick={() => memberActionMutation.mutate({ url: "/reject/" + p.username, body: { clubName } })} className="deletebtn" style={{margin: "0 0 0 0.5rem"}}>✖</button>
                                             </td>
                                         </tr>
                                     ))}
@@ -778,12 +790,19 @@ const ClubPage = () => {
             </div>
             <div>
                 {/* SA doesn't need to join - they have full access already */}
-                {!isSA && !isMember && !isPending && !session?.club && (
+                {/* CL (Club Leaders) cannot join other clubs */}
+                {!isSA && !isMember && !isPending && !isClubLeaderAnywhere && (
                     <button onClick={() => {
                         if (!session) return navigate("/LogIn")
                         joinClubMutation.mutate()
                     }}>Join Club</button>
-                )}&nbsp;
+                )}
+                {!isSA && !isMember && !isPending && isClubLeaderAnywhere && (
+                    <button className="btn-muted" disabled title="Club Leaders cannot join other clubs">
+                        CL cannot join other clubs
+                    </button>
+                )}
+                &nbsp;
                 {isPending && (
                     <>
                         <button className="btn-muted" disabled>Request pending</button>&nbsp;

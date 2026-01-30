@@ -7,7 +7,13 @@ import { getSession } from "../utils/auth"
 
 const CreateClub = () => {
     const session = getSession()
-    const isSA = useMemo(() => session?.role === 'SA', [session?.role])
+    const isSA = useMemo(() => session?.isAdmin === true, [session?.isAdmin])
+    
+    // Check if user is a Club Leader anywhere (CL cannot create new clubs)
+    const isClubLeaderAnywhere = useMemo(() => {
+        if (!session?.memberships) return false
+        return session.memberships.some(m => m.role === 'CL')
+    }, [session])
 
     // State for club details
     const [clubs, setClubs] = useState({
@@ -55,9 +61,9 @@ const CreateClub = () => {
                     return
                 }
             } else {
-                // Non-SA must not be in a club
-                if (session.club) {
-                    alert("You must not be enrolled in any club to create a new one.")
+                // Non-SA Club Leaders cannot create new clubs
+                if (isClubLeaderAnywhere) {
+                    alert("Club Leaders cannot create new clubs.")
                     return
                 }
             }
@@ -90,8 +96,8 @@ const CreateClub = () => {
     return (
         <div className="CreateClub">
             <h1>Create Club</h1>
-            {!isSA && session?.club ? (
-                <p style={{ opacity: 0.7, textAlign: "center" }}>You must leave your current club before creating a new one.</p>
+            {!isSA && isClubLeaderAnywhere ? (
+                <p style={{ opacity: 0.7, textAlign: "center" }}>Club Leaders cannot create new clubs.</p>
             ) : (
                 <form>
                     <input type="text" placeholder="Club Name" onChange={handleChange} name="clubName" required/><br/>

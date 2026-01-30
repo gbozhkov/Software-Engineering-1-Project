@@ -49,16 +49,18 @@ function App() {
         return
       }
       try {
-        // Refresh session from server to get latest role/club info
+        // Refresh session from server to get latest memberships info
         const sessionRes = await api.get('/session')
         const serverSession = sessionRes.data
         
-        // Update local session if server has different data
-        if (nextSession.role !== serverSession.role || nextSession.club !== serverSession.club) {
+        // Update local session if server has different memberships data
+        const localMemberships = JSON.stringify(nextSession.memberships || [])
+        const serverMemberships = JSON.stringify(serverSession.memberships || [])
+        if (localMemberships !== serverMemberships || nextSession.isAdmin !== serverSession.isAdmin) {
           const updatedSession = {
             ...nextSession,
-            role: serverSession.role,
-            club: serverSession.club
+            memberships: serverSession.memberships,
+            isAdmin: serverSession.isAdmin
           }
           setSession(updatedSession)
           window.localStorage.setItem('sca_session', JSON.stringify(updatedSession))
@@ -112,6 +114,41 @@ function App() {
   )
 }
 
+// My Clubs Dropdown Component
+function MyClubsDropdown({ memberships }) {
+  const [open, setOpen] = useState(false)
+  
+  if (memberships.length === 1) {
+    // Single club - just show direct link
+    return (
+      <Link className="chip-link" to={`/ClubPage/${encodeURIComponent(memberships[0].clubName)}`}>
+        My Club ({memberships[0].role})
+      </Link>
+    )
+  }
+  
+  return (
+    <div className="dropdown" onMouseLeave={() => setOpen(false)}>
+      <button className="dropdown-toggle" onClick={() => setOpen(!open)}>
+        My Clubs ({memberships.length}) ▾
+      </button>
+      {open && (
+        <div className="dropdown-menu">
+          {memberships.map(m => (
+            <Link 
+              key={m.clubName} 
+              to={`/ClubPage/${encodeURIComponent(m.clubName)}`}
+              onClick={() => setOpen(false)}
+            >
+              {m.clubName} <span className="role-badge">{m.role}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AppContent({ session, unread, handleLogout, darkMode, setDarkMode }) {
   const location = useLocation()
   const isAuthPage = ['/LogIn','/SignUp'].includes(location.pathname)
@@ -134,13 +171,11 @@ function AppContent({ session, unread, handleLogout, darkMode, setDarkMode }) {
               Notifications
               {unread > 0 && <span className="pill">{unread}</span>}
             </Link>
-            {session?.role === 'SA' ? (
+            {session?.isAdmin ? (
               // SA can create clubs with initial leader assignment
               <Link to="/CreateClub">Create Club</Link>
-            ) : session?.club ? (
-              <Link className="chip-link" to={`/ClubPage/${session.club}`}>
-                My Club
-              </Link>
+            ) : session?.memberships?.length > 0 ? (
+              <MyClubsDropdown memberships={session.memberships} />
             ) : (
               <Link to="/CreateClub">Create Club</Link>
             )}
@@ -148,7 +183,7 @@ function AppContent({ session, unread, handleLogout, darkMode, setDarkMode }) {
           <div className="nav-actions">
             {session ? (
               <>
-                <span className="user-chip">{session.username} <span className="user-chip-info">({session.role}{session.club ? ` · ${session.club}` : ""})</span></span>
+                <span className="user-chip">{session.username} <span className="user-chip-info">({session.isAdmin ? 'SA' : session.memberships?.length ? `${session.memberships.length} club${session.memberships.length > 1 ? 's' : ''}` : 'Student'})</span></span>
                 <button className="ghost" onClick={handleLogout}>Logout</button>
               </>
             ) : (

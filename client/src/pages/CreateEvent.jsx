@@ -33,9 +33,10 @@ const CreateEvent = () => {
     const handleClick = async (e) => {
         e.preventDefault() // Prevent default form submission behavior
         try {
-            // SA can create events for any club, CL/VP only for their own
-            const isSA = session?.role === 'SA'
-            if (!session || (!isSA && (session.club !== clubName || !['CL', 'VP'].includes(session.role)))) {
+            // SA can create events for any club, CL/VP only for their own club
+            const isSA = session?.isAdmin === true
+            const myMembership = session?.memberships?.find(m => m.clubName === clubName)
+            if (!session || (!isSA && (!myMembership || !['CL', 'VP'].includes(myMembership.role)))) {
                 alert("Only club admins can create events.")
                 return
             }
@@ -51,8 +52,9 @@ const CreateEvent = () => {
     // ---> UPDATE: change role STU to CL and club NULL to clubName <---
 
     // Render the create club form
-    const isSA = session?.role === 'SA'
-    const canCreateEvent = isSA || (session?.club === clubName && ['CL', 'VP'].includes(session.role))
+    const isSA = session?.isAdmin === true
+    const myMembership = session?.memberships?.find(m => m.clubName === clubName)
+    const canCreateEvent = isSA || (myMembership && ['CL', 'VP'].includes(myMembership.role))
     
     return (
         <div className="CreateClub">
