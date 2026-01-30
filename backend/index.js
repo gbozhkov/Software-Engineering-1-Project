@@ -1105,11 +1105,34 @@ app.put('/transferLeadership/:username', requireAuth, async (req, res) => {
 // Notifications
 app.get('/notifications', requireAuth, async (req, res) => {
   console.log(`GET /notifications - User: ${req.user?.username}, Mailbox: ${req.query.mailbox || 'inbox'}`)
-  const { search, orderKey, direction, limit, page, offset } = buildPagination(
+  const { search, limit, page, offset } = buildPagination(
     req.query,
     { created: 'createdAt', type: 'type', read: 'isRead' },
     'createdAt'
   )
+  // Handle groupBy and order separately
+  // groupBy determines primary sort field, order determines direction (newest/oldest = desc/asc)
+  const groupByMap = { created: 'createdAt', type: 'type', read: 'isRead' }
+  const groupByField = groupByMap[req.query.groupBy] || 'createdAt'
+  const direction = req.query.order === 'asc' ? 'ASC' : 'DESC'
+  // For groupBy, we sort by the group field first, then by date within the group
+  // If groupBy is 'created' (date), we just sort by date
+  // If groupBy is 'type' or 'read', we sort by that field (fixed order), then by date as secondary
+  const orderKey = groupByField
+  // Build ORDER BY clause: primary sort by groupBy field (fixed), secondary by date (user direction)
+  const buildOrderBy = (prefix = 'n.', usesLastReplyTime = false) => {
+    const dateField = usesLastReplyTime ? 'lastReplyTime' : `${prefix}createdAt`
+    if (groupByField === 'createdAt') {
+      // Group by date: just sort by date with user's direction
+      return `${dateField} ${direction}`
+    }
+    // Group by type: alphabetical order (ASC) - email, event, membership
+    // Group by read: unread first (ASC) - 0 (unread) before 1 (read)
+    // The date within each group uses the user's direction (newest/oldest)
+    const groupDirection = 'ASC'
+    return `${prefix}${groupByField} ${groupDirection}, ${dateField} ${direction}`
+  }
+  
   const like = `%${search}%`
   const unreadFilter = req.query.unread === 'true' ? ' AND isRead = 0' : ''
   // For mixed mailboxes (all/inbox), need different filter to handle club-wide notifications
@@ -1134,7 +1157,7 @@ app.get('/notifications', requireAuth, async (req, res) => {
            AND (n.message LIKE ? OR n.type LIKE ?)${unreadFilter}
            AND n.replyTo IS NULL
            AND EXISTS(SELECT 1 FROM notifications r WHERE r.replyTo = n.notificationid)
-         ORDER BY lastReplyTime ${direction} LIMIT ? OFFSET ?`,
+         ORDER BY ${buildOrderBy('n.', true)} LIMIT ? OFFSET ?`,
         [req.user.username, req.user.username, like, like, limit, offset]
       )
       const [[{ total: convTotal }]] = await dbp.query(
@@ -1168,7 +1191,7 @@ app.get('/notifications', requireAuth, async (req, res) => {
                WHERE r.replyTo = n.notificationid AND r.senderUsername = ?
              )
            )
-         ORDER BY ${orderKey === 'created' ? 'lastReplyTime' : 'n.' + orderKey} ${direction} LIMIT ? OFFSET ?`,
+         ORDER BY ${buildOrderBy('n.', true)} LIMIT ? OFFSET ?`,
         [like, like, req.user.username, req.user.username, limit, offset]
       )
       const [[{ total: sentTotal }]] = await dbp.query(
@@ -1205,7 +1228,7 @@ app.get('/notifications', requireAuth, async (req, res) => {
            AND n.username IS NULL
            AND n.type != 'report'
            AND (nr.username IS NOT NULL OR n.senderUsername = ?)
-         ORDER BY n.${orderKey} ${direction} LIMIT ? OFFSET ?`,
+         ORDER BY ${buildOrderBy('n.', false)} LIMIT ? OFFSET ?`,
         clubUnreadParams
       )
       const clubCountParams = req.query.unread === 'true' 
@@ -1247,7 +1270,7 @@ app.get('/notifications', requireAuth, async (req, res) => {
            AND n.type = 'report'
            AND (n.message LIKE ? OR n.type LIKE ?)${reportUnreadFilter}
            AND (nr.username IS NOT NULL OR n.senderUsername = ?)
-         ORDER BY n.${orderKey} ${direction} LIMIT ? OFFSET ?`,
+         ORDER BY ${buildOrderBy('n.', false)} LIMIT ? OFFSET ?`,
         reportParams
       )
       const reportCountParams = req.query.unread === 'true'
@@ -1294,7 +1317,7 @@ app.get('/notifications', requireAuth, async (req, res) => {
                AND (r.username = ? OR r.senderUsername = ?)
              )
            )
-         ORDER BY lastReplyTime ${direction}`,
+         ORDER BY ${buildOrderBy('n.', true)}`,
         allParams
       )
       rows = allRows.slice(offset, offset + limit).map(row => ({ ...row, isRead: row.isReadByUser ? 1 : 0 }))
@@ -1323,7 +1346,7 @@ app.get('/notifications', requireAuth, async (req, res) => {
              )
              OR (n.username IS NULL AND nr_check.username IS NOT NULL)
            )
-         ORDER BY ${orderKey === 'created' ? 'lastReplyTime' : 'n.' + orderKey} ${direction} LIMIT ? OFFSET ?`,
+         ORDER BY ${buildOrderBy('n.', true)} LIMIT ? OFFSET ?`,
         inboxParams
       )
       // Params: LEFT JOIN, 2x LIKE, [mixedUnreadFilter if unread], username=?, EXISTS username
@@ -1366,8 +1389,22 @@ app.get('/notifications', requireAuth, async (req, res) => {
       }
     }
     
-    // Re-sort the rows by createdAt after updating timestamps
+    // Re-sort the rows after updating timestamps, respecting groupBy field
     rows.sort((a, b) => {
+      // If groupBy is type or read, sort by that field first (ascending), then by date
+      if (groupByField === 'type') {
+        if (a.type !== b.type) {
+          return a.type.localeCompare(b.type) // alphabetical: email < event < membership
+        }
+      } else if (groupByField === 'isRead') {
+        // For sent items (including club-wide), treat as "read" from sender's perspective
+        const aRead = (a.isRead || a.senderUsername === req.user.username) ? 1 : 0
+        const bRead = (b.isRead || b.senderUsername === req.user.username) ? 1 : 0
+        if (aRead !== bRead) {
+          return aRead - bRead // unread (0) first, then read (1)
+        }
+      }
+      // Secondary sort by date
       const dateA = new Date(a.createdAt)
       const dateB = new Date(b.createdAt)
       return direction === 'DESC' ? dateB - dateA : dateA - dateB

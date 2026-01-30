@@ -13,7 +13,7 @@ const Notifications = () => {
   const queryClient = useQueryClient()
   
   const defoaltMailbox = session?.isAdmin ? 'report' : 'inbox'
-  const [filters, setFilters] = useState({ search: "", orderBy: "created", order: "desc", page: 1, limit: 6, unread: 'all', mailbox: defoaltMailbox || 'inbox' })
+  const [filters, setFilters] = useState({ search: "", groupBy: "created", order: "desc", page: 1, limit: 6, unread: 'all', mailbox: defoaltMailbox || 'inbox' })
   const [filterOpen, setFilterOpen] = useState(false)
   
   const [emailFormOpen, setEmailFormOpen] = useState(false)
@@ -35,7 +35,7 @@ const Notifications = () => {
     queryFn: () => {
         const params = {
             q: filters.search,
-            orderBy: filters.orderBy,
+            groupBy: filters.groupBy,
             order: filters.order,
             limit: filters.limit,
             page: filters.page,
@@ -44,7 +44,7 @@ const Notifications = () => {
         if (filters.unread === 'unread') params.unread = true
         return api.get("/notifications", { params }).then(res => res.data)
     },
-    placeholderData: keepPreviousData,
+    staleTime: 0,
     enabled: !!session
   })
 
@@ -340,15 +340,15 @@ const Notifications = () => {
       {filterOpen && (
         <div className="filter-panel">
           <label>
-            Order by:
-            <select value={filters.orderBy} onChange={(e) => updateFilter("orderBy", e.target.value)}>
+            Group by:
+            <select value={filters.groupBy} onChange={(e) => updateFilter("groupBy", e.target.value)}>
               <option value="created">Date</option>
               <option value="type">Type</option>
               <option value="read">Read/Unread</option>
             </select>
           </label>
           <label>
-            Sort:
+            Order by:
             <select value={filters.order} onChange={(e) => updateFilter("order", e.target.value)}>
               <option value="desc">Newest</option>
               <option value="asc">Oldest</option>
