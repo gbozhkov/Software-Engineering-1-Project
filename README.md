@@ -1,3 +1,19 @@
+# Deploy (Live Demo)
+
+Live URL: https://school-club-activity-deploy.onrender.com
+
+This demo is hosted on a free tier, so performance can be slow.
+
+- The first request after inactivity may take few seconds.
+- Some actions can take a few seconds due to database latency.
+- Please avoid rapid repeated clicks: click once and wait for the response.
+- Do not refersh the page: start always with the given URL 
+
+Known limitation: in this free database environment, some timestamps may appear as `01/01/1970 01:00:00`.
+
+If you prefer, you can watch the showcase video instead.
+
+
 # School Club Activity Showcase
 
 > A web platform for managing and exploring school club activities, events, and memberships.
