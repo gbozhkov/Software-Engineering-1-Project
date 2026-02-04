@@ -66,7 +66,7 @@ const Notifications = () => {
   // 3. Fetch Clubs (for SA to select which club to send to)
   const { data: clubsList = [] } = useQuery({
     queryKey: ['clubs-list'],
-    queryFn: () => api.get("/clubs").then(res => res.data),
+    queryFn: () => api.get("/clubs", { params: { limit: 200 } }).then(res => res.data.data || res.data),
     enabled: isSA,
     staleTime: 1000 * 60 * 5 // Cache for 5 minutes
   })

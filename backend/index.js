@@ -223,9 +223,12 @@ app.get('/clubs', requireAuth, async (req, res) => {
       status === 'full' ? ' AND memberCount >= memberMax' :
       status === 'notFull' ? ' AND memberCount < memberMax' : ''
 
+    // Allow higher limit for clubs list (up to 200 clubs)
+    const effectiveLimit = Math.min(limit, 200)
+
     const [rows] = await dbp.query(
       `SELECT * FROM clubs WHERE clubName LIKE ?${statusClause} ORDER BY ${orderKey} ${direction} LIMIT ? OFFSET ?`,
-      [like, limit, offset]
+      [like, effectiveLimit, offset]
     )
     const [[{ total }]] = await dbp.query(`SELECT COUNT(*) AS total FROM clubs WHERE clubName LIKE ?${statusClause}`, [like])
 
@@ -234,7 +237,7 @@ app.get('/clubs', requireAuth, async (req, res) => {
       return res.json({
         data: rows,
         page,
-        pages: Math.ceil(total / limit) || 1,
+        pages: Math.ceil(total / effectiveLimit) || 1,
         total
       })
     }
@@ -1522,7 +1525,7 @@ app.post('/replyEmail', requireAuth, async (req, res) => {
 })
 
 app.post('/sendEmail', requireAuth, async (req, res) => {
-  const { recipient, message, sendToAllClub, sendReport, type, link, targetClub } = req.body
+  let { recipient, message, sendToAllClub, sendReport, type, link, targetClub } = req.body
   console.log(`POST /sendEmail - User: ${req.user?.username}, To: ${sendReport ? 'All admins' : sendToAllClub ? 'All club' : recipient}`)
   if (!message) return res.status(400).json({ message: 'Message required' })
   
@@ -1563,12 +1566,22 @@ app.post('/sendEmail', requireAuth, async (req, res) => {
     
     // Check if user is CL/VP or SA for sending to all club members
     if (sendToAllClub) {
+      // Auto-fill targetClub if user is CL/VP of only one club
+      if (!targetClub && !isSA(req.user)) {
+        const adminClubs = req.user.memberships.filter(m => ['CL', 'VP'].includes(m.role))
+        if (adminClubs.length === 1) {
+          targetClub = adminClubs[0].clubName
+        }
+      }
+      
+      // Check targetClub exists BEFORE checking permissions
+      if (!targetClub) {
+        return res.status(400).json({ message: 'Target club required for sending to all members' })
+      }
+      
       // SA can send to any club, CL/VP to their own clubs
       if (!isSA(req.user) && !canActAsAdmin(req.user, targetClub)) {
         return res.status(403).json({ message: 'Only Club Leaders, Vice Presidents, and System Administrators can send to all members' })
-      }
-      if (!targetClub) {
-        return res.status(400).json({ message: 'Target club required for sending to all members' })
       }
       
       // Create single club-wide notification with username=NULL
