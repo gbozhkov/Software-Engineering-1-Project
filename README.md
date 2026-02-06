@@ -17,6 +17,7 @@ If you prefer, you can watch the showcase video instead.
 # School Club Activity Showcase
 
 > A web platform for managing and exploring school club activities, events, and memberships.
+
 LINK to the showcase video: https://drive.google.com/file/d/1HJ0XXtW9egajTawd1DVowwybUgFuh4A8/view?usp=sharing
 
 **Team 9**: Francesco Bolner, Georgi Bozhkov, Samuele Fumagalli, Ayoub Merdan, Martin Ushilov
